@@ -68,8 +68,9 @@ jobs:
         with:
           api-level: ${{ env.ANDROID_SDK_VERSION }}
           ndk-version: ${{ env.ANDROID_NDK_VERSION }}
-          # tools package is deprecated - use cmdline-tools instead
+          # tools package is deprecated - use only cmdline-tools and platform packages
           cmdline-tools-version: 'latest'
+          platforms: android-${{ env.ANDROID_SDK_VERSION }}
 
       - name: Accept Android Licenses
         run: |
@@ -127,8 +128,7 @@ jobs:
         with:
           api-level: ${{ env.ANDROID_SDK_VERSION }}
           ndk-version: ${{ env.ANDROID_NDK_VERSION }}
-          # tools package is deprecated - use cmdline-tools instead
-          cmdline-tools-version: 'latest'
+          platforms: android-${{ env.ANDROID_SDK_VERSION }}
 
       - name: Restore Gradle Cache
         uses: actions/cache@v4
@@ -214,8 +214,7 @@ jobs:
         with:
           api-level: ${{ env.ANDROID_SDK_VERSION }}
           ndk-version: ${{ env.ANDROID_NDK_VERSION }}
-          # tools package is deprecated - use cmdline-tools instead
-          cmdline-tools-version: 'latest'
+          platforms: android-${{ env.ANDROID_SDK_VERSION }}
 
       - name: Restore Gradle Cache
         uses: actions/cache@v4
@@ -312,7 +311,7 @@ jobs:
           lfs: true
 
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@0.38.0
+        uses: aquasecurity/trivy-action@0.47.0
         with:
           scan-type: 'fs'
           scan-ref: '.'

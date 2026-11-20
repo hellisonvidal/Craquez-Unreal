@@ -5,14 +5,12 @@
 
 DEFINE_LOG_CATEGORY(LogFootballCoreAI);
 
-void FFootballCoreAIModule::StartupModule()
-{
-    UE_LOG(LogFootballCoreAI, Log, TEXT("FootballCoreAI Module Started"));
+void FFootballCoreAIModule::StartupModule() {
+  UE_LOG(LogFootballCoreAI, Log, TEXT("FootballCoreAI Module Started"));
 }
 
-void FFootballCoreAIModule::ShutdownModule()
-{
-    UE_LOG(LogFootballCoreAI, Log, TEXT("FootballCoreAI Module Shutdown"));
+void FFootballCoreAIModule::ShutdownModule() {
+  UE_LOG(LogFootballCoreAI, Log, TEXT("FootballCoreAI Module Shutdown"));
 }
 
 IMPLEMENT_MODULE(FFootballCoreAIModule, FootballCoreAI)
