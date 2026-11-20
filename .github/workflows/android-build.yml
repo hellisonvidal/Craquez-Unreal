@@ -68,9 +68,9 @@ jobs:
         with:
           api-level: ${{ env.ANDROID_SDK_VERSION }}
           ndk-version: ${{ env.ANDROID_NDK_VERSION }}
-          # tools package is deprecated - use only cmdline-tools and platform packages
-          cmdline-tools-version: 'latest'
+          # Explicitly specify packages to install - avoid deprecated 'tools' package
           platforms: android-${{ env.ANDROID_SDK_VERSION }}
+          # Don't install deprecated 'tools' package - use cmdline-tools instead
 
       - name: Accept Android Licenses
         run: |
@@ -128,6 +128,7 @@ jobs:
         with:
           api-level: ${{ env.ANDROID_SDK_VERSION }}
           ndk-version: ${{ env.ANDROID_NDK_VERSION }}
+          # Explicitly specify platforms to install - avoid deprecated 'tools' package
           platforms: android-${{ env.ANDROID_SDK_VERSION }}
 
       - name: Restore Gradle Cache
