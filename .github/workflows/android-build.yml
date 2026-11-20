@@ -203,7 +203,7 @@ jobs:
   create-release:
     name: Create GitHub Release
     needs: [build-apk, build-aab]
-    if: startsWith(github.ref, 'refs/tags/v') && github.event_name == 'push'
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -222,7 +222,6 @@ jobs:
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/v')
         with:
           tag_name: ${{ github.ref_name }}
           name: Craquez ${{ github.ref_name }}
@@ -235,42 +234,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # Build Unreal Engine project (optional - requires UE5 installed)
-  build-unreal:
-    name: Build Unreal Project
-    needs: setup
-    runs-on: windows-latest
-    if: github.event_name != 'pull_request'
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          lfs: true
-          fetch-depth: 0
-
-      - name: Setup Unreal Engine
-        uses: WalrusAI/unreal-engine-setup@v1
-        with:
-          version: '5.4'
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build Unreal Project for Android
-        run: |
-          # This requires UE5 to be installed on the runner
-          # For now, we document the command
-          echo "Unreal Engine Android build would run here"
-          echo "Command: UnrealBuildTool.exe Craquez Android Development -Project=Craquez.uproject"
-        shell: cmd
-
-      - name: Upload Unreal Build Artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: unreal-android-build
-          path: |
-            Build/Android/app/build/outputs/
-          retention-days: 7
-
   # Code quality checks
   lint:
     name: Code Quality
@@ -280,6 +243,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           lfs: true
+
+      - name: Install clang-format
+        run: sudo apt-get update && sudo apt-get install -y clang-format
 
       - name: Run clang-format check
         run: |
@@ -304,7 +270,7 @@ jobs:
           lfs: true
 
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.28.0
         with:
           scan-type: 'fs'
           scan-ref: '.'
