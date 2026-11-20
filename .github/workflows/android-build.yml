@@ -64,7 +64,6 @@ jobs:
           # cache: 'gradle'
 
       - name: Setup Android SDK (Manual)
-        name: Setup Android SDK
         run: |
           # Install required Android SDK packages manually
           # Avoid deprecated 'tools' package
