@@ -160,15 +160,33 @@ private:
     void UpdateTransportControls();
     void UpdateTimeline();
     void UpdateTimeDisplay();
+    UFUNCTION()
     void OnPlayClicked();
+
+    UFUNCTION()
     void OnPauseClicked();
+
+    UFUNCTION()
     void OnStopClicked();
+
+    UFUNCTION()
     void OnStepBackClicked();
+
+    UFUNCTION()
     void OnStepForwardClicked();
+
+    UFUNCTION()
     void OnTimelineChanged(float Value);
+
     void OnCameraModeChanged(int32 Mode);
+
+    UFUNCTION()
     void OnHeatmapToggled();
+
+    UFUNCTION()
     void OnPassLinesToggled();
+
+    UFUNCTION()
     void OnPlayerPathsToggled();
     FString FormatTime(float Seconds) const;
 };

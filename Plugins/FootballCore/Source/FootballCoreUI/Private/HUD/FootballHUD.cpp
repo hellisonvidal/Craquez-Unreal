@@ -11,9 +11,7 @@
 #include "Player/FootballPlayerCharacter.h"
 #include "Kismet/GameplayStatics.h"
 
-AFootballHUD::AFootballHUD()
-{
-}
+AFootballHUD::AFootballHUD() {}
 
 void AFootballHUD::BeginPlay()
 {
@@ -125,8 +123,10 @@ void AFootballHUD::InitializeWidgetReferences()
 
     if (TacticalWidget)
     {
-        if (HomeTeam) TacticalWidget->SetTeam(HomeTeam);
-        if (AwayTeam) TacticalWidget->SetTeam(AwayTeam);
+        if (HomeTeam)
+            TacticalWidget->SetTeam(HomeTeam);
+        if (AwayTeam)
+            TacticalWidget->SetTeam(AwayTeam);
     }
 
     if (ReplayWidget && GameMode)
@@ -267,7 +267,8 @@ void AFootballHUD::ShowCard(EFootballTeamSide::Type Team, AFootballPlayerCharact
     }
 }
 
-void AFootballHUD::ShowSubstitution(EFootballTeamSide::Type Team, AFootballPlayerCharacter* PlayerOut, AFootballPlayerCharacter* PlayerIn)
+void AFootballHUD::ShowSubstitution(EFootballTeamSide::Type Team, AFootballPlayerCharacter* PlayerOut,
+                                    AFootballPlayerCharacter* PlayerIn)
 {
     if (MatchWidget)
     {

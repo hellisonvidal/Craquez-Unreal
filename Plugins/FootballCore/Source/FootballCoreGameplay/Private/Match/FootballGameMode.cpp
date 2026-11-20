@@ -3,6 +3,7 @@
 #include "Match/FootballGameMode.h"
 #include "Team/FootballTeam.h"
 #include "Team/FootballTeamManager.h"
+#include "Tactical/FootballTacticalComponent.h"
 #include "Player/FootballPlayerCharacter.h"
 #include "BallPhysics/FootballBallComponent.h"
 #include "Kismet/GameplayStatics.h"
@@ -106,8 +107,10 @@ void AFootballGameMode::RestartMatch()
     ResetBall(EFootballMatchPhase::KickOff);
 
     // Reset teams
-    if (HomeTeam) HomeTeam->OnKickOff(true);
-    if (AwayTeam) AwayTeam->OnKickOff(false);
+    if (HomeTeam)
+        HomeTeam->OnKickOff(true);
+    if (AwayTeam)
+        AwayTeam->OnKickOff(false);
 
     StartMatch();
 }
@@ -139,7 +142,8 @@ void AFootballGameMode::SpawnBall(FVector Location)
 {
     if (BallComponentClass)
     {
-        AActor* BallActor = GetWorld()->SpawnActor<AActor>(BallComponentClass->GetDefaultObject()->GetClass(), Location, FRotator::ZeroRotator);
+        AActor* BallActor = GetWorld()->SpawnActor<AActor>(BallComponentClass->GetDefaultObject()->GetClass(), Location,
+                                                           FRotator::ZeroRotator);
         if (BallActor)
         {
             BallComponent = BallActor->FindComponentByClass<UFootballBallComponent>();
@@ -162,27 +166,29 @@ void AFootballGameMode::ResetBall(EFootballMatchPhase::Type RestartType)
 
     switch (RestartType)
     {
-        case EFootballMatchPhase::KickOff:
-            ResetLocation = GetKickOffPosition();
-            break;
-        case EFootballMatchPhase::SetPiece_GoalKick:
-            ResetLocation = GetGoalKickPosition(LastTouchTeam == EFootballTeamSide::Home ? EFootballTeamSide::Away : EFootballTeamSide::Home);
-            break;
-        case EFootballMatchPhase::SetPiece_Corner:
-            ResetLocation = GetCornerPosition(LastTouchTeam == EFootballTeamSide::Home ? EFootballTeamSide::Away : EFootballTeamSide::Home);
-            break;
-        case EFootballMatchPhase::SetPiece_FreeKick:
-            ResetLocation = BallComponent->GetComponentLocation(); // Stay at foul location
-            break;
-        case EFootballMatchPhase::SetPiece_ThrowIn:
-            ResetLocation = BallComponent->GetComponentLocation();
-            break;
-        case EFootballMatchPhase::SetPiece_Penalty:
-            ResetLocation = FVector(5000, 0, 100); // Penalty spot
-            break;
-        default:
-            ResetLocation = GetKickOffPosition();
-            break;
+    case EFootballMatchPhase::KickOff:
+        ResetLocation = GetKickOffPosition();
+        break;
+    case EFootballMatchPhase::SetPiece_GoalKick:
+        ResetLocation = GetGoalKickPosition(LastTouchTeam == EFootballTeamSide::Home ? EFootballTeamSide::Away
+                                                                                     : EFootballTeamSide::Home);
+        break;
+    case EFootballMatchPhase::SetPiece_Corner:
+        ResetLocation = GetCornerPosition(LastTouchTeam == EFootballTeamSide::Home ? EFootballTeamSide::Away
+                                                                                   : EFootballTeamSide::Home);
+        break;
+    case EFootballMatchPhase::SetPiece_FreeKick:
+        ResetLocation = BallComponent->GetComponentLocation(); // Stay at foul location
+        break;
+    case EFootballMatchPhase::SetPiece_ThrowIn:
+        ResetLocation = BallComponent->GetComponentLocation();
+        break;
+    case EFootballMatchPhase::SetPiece_Penalty:
+        ResetLocation = FVector(5000, 0, 100); // Penalty spot
+        break;
+    default:
+        ResetLocation = GetKickOffPosition();
+        break;
     }
 
     BallComponent->ResetBall(ResetLocation);
@@ -190,8 +196,10 @@ void AFootballGameMode::ResetBall(EFootballMatchPhase::Type RestartType)
     // Set possession based on restart type
     if (RestartType == EFootballMatchPhase::KickOff)
     {
-        if (HomeTeam) HomeTeam->OnKickOff(true);
-        if (AwayTeam) AwayTeam->OnKickOff(false);
+        if (HomeTeam)
+            HomeTeam->OnKickOff(true);
+        if (AwayTeam)
+            AwayTeam->OnKickOff(false);
     }
 }
 
@@ -200,14 +208,18 @@ void AFootballGameMode::RegisterGoal(EFootballTeamSide::Type ScoringTeam, AFootb
     if (ScoringTeam == EFootballTeamSide::Home)
     {
         HomeScore++;
-        if (HomeTeam) HomeTeam->OnGoalScored(Scorer);
-        if (AwayTeam) AwayTeam->OnGoalConceded();
+        if (HomeTeam)
+            HomeTeam->OnGoalScored(Scorer);
+        if (AwayTeam)
+            AwayTeam->OnGoalConceded();
     }
     else
     {
         AwayScore++;
-        if (AwayTeam) AwayTeam->OnGoalScored(Scorer);
-        if (HomeTeam) HomeTeam->OnGoalConceded();
+        if (AwayTeam)
+            AwayTeam->OnGoalScored(Scorer);
+        if (HomeTeam)
+            HomeTeam->OnGoalConceded();
     }
 
     OnGoalScored.Broadcast(ScoringTeam, Scorer);
@@ -215,20 +227,43 @@ void AFootballGameMode::RegisterGoal(EFootballTeamSide::Type ScoringTeam, AFootb
 
     // Restart with kickoff for conceding team
     FTimerHandle RestartTimer;
-    GetWorldTimerManager().SetTimer(RestartTimer, [this, ScoringTeam]()
-    {
-        ResetBall(EFootballMatchPhase::KickOff);
-        if (ScoringTeam == EFootballTeamSide::Home)
+    GetWorldTimerManager().SetTimer(
+        RestartTimer,
+        [this, ScoringTeam]()
         {
-            if (AwayTeam) AwayTeam->OnKickOff(true);
-            if (HomeTeam) HomeTeam->OnKickOff(false);
-        }
-        else
-        {
-            if (HomeTeam) HomeTeam->OnKickOff(true);
-            if (AwayTeam) AwayTeam->OnKickOff(false);
-        }
-    }, 5.0f, false);
+            ResetBall(EFootballMatchPhase::KickOff);
+            if (ScoringTeam == EFootballTeamSide::Home)
+            {
+                if (AwayTeam)
+                    AwayTeam->OnKickOff(true);
+                if (HomeTeam)
+                    HomeTeam->OnKickOff(false);
+            }
+            else
+            {
+                if (HomeTeam)
+                    HomeTeam->OnKickOff(true);
+                if (AwayTeam)
+                    AwayTeam->OnKickOff(false);
+            }
+        },
+        5.0f, false);
+}
+
+float AFootballGameMode::GetMatchTimeRemaining() const
+{
+    const float TotalMatchSeconds = MatchDuration * 60.0f;
+    return FMath::Max(0.0f, TotalMatchSeconds - MatchTimeElapsed);
+}
+
+float AFootballGameMode::GetMatchTimeElapsed() const
+{
+    return MatchTimeElapsed;
+}
+
+int32 AFootballGameMode::GetCurrentMinute() const
+{
+    return FMath::FloorToInt(MatchTimeElapsed / 60.0f);
 }
 
 void AFootballGameMode::SetMatchPhase(EFootballMatchPhase::Type NewPhase)
@@ -280,21 +315,25 @@ void AFootballGameMode::CheckOffside(AFootballPlayerCharacter* Attacker)
     if (bIsOffside)
     {
         // Award free kick to defending team
-        AwardFreeKick(DefenderTeam->GetTeamSide(), Attacker->GetActorLocation(), FGameplayTag::RequestGameplayTag("Foul.Offside"));
+        AwardFreeKick(DefenderTeam->GetTeamSide(), Attacker->GetActorLocation(),
+                      FGameplayTag::RequestGameplayTag("Foul.Offside"));
         OnMatchEvent.Broadcast(FGameplayTag::RequestGameplayTag("Foul.Offside"), Attacker, nullptr);
     }
 }
 
-void AFootballGameMode::RegisterFoul(EFootballTeamSide::Type OffendingTeam, AFootballPlayerCharacter* Offender, FVector Location, FGameplayTag FoulType)
+void AFootballGameMode::RegisterFoul(EFootballTeamSide::Type OffendingTeam, AFootballPlayerCharacter* Offender,
+                                     FVector Location, FGameplayTag FoulType)
 {
     // Update stats
     if (OffendingTeam == EFootballTeamSide::Home)
     {
-        if (HomeTeam) HomeTeam->FoulsCommitted++;
+        if (HomeTeam)
+            HomeTeam->AddFoul();
     }
     else
     {
-        if (AwayTeam) AwayTeam->FoulsCommitted++;
+        if (AwayTeam)
+            AwayTeam->AddFoul();
     }
 
     // Determine sanction
@@ -302,22 +341,26 @@ void AFootballGameMode::RegisterFoul(EFootballTeamSide::Type OffendingTeam, AFoo
     {
         if (OffendingTeam == EFootballTeamSide::Home)
         {
-            HomeTeam->YellowCards++;
+            if (HomeTeam)
+                HomeTeam->AddYellowCard();
         }
         else
         {
-            AwayTeam->YellowCards++;
+            if (AwayTeam)
+                AwayTeam->AddYellowCard();
         }
     }
     else if (FoulType == FGameplayTag::RequestGameplayTag("Foul.RedCard"))
     {
         if (OffendingTeam == EFootballTeamSide::Home)
         {
-            HomeTeam->RedCards++;
+            if (HomeTeam)
+                HomeTeam->AddRedCard();
         }
         else
         {
-            AwayTeam->RedCards++;
+            if (AwayTeam)
+                AwayTeam->AddRedCard();
         }
         // Send off player
         if (Offender)
@@ -327,7 +370,8 @@ void AFootballGameMode::RegisterFoul(EFootballTeamSide::Type OffendingTeam, AFoo
     }
 
     // Award free kick or penalty
-    EFootballTeamSide::Type VictimTeam = (OffendingTeam == EFootballTeamSide::Home) ? EFootballTeamSide::Away : EFootballTeamSide::Home;
+    EFootballTeamSide::Type VictimTeam =
+        (OffendingTeam == EFootballTeamSide::Home) ? EFootballTeamSide::Away : EFootballTeamSide::Home;
 
     // Check if in penalty area
     bool bInPenaltyArea = false; // Would check location against penalty area
@@ -352,12 +396,14 @@ void AFootballGameMode::AwardFreeKick(EFootballTeamSide::Type Team, FVector Loca
     if (Team == EFootballTeamSide::Home && HomeTeam)
     {
         HomeTeam->OnSetPiece(EFootballMatchPhase::SetPiece_FreeKick, true);
-        if (AwayTeam) AwayTeam->OnSetPiece(EFootballMatchPhase::SetPiece_FreeKick, false);
+        if (AwayTeam)
+            AwayTeam->OnSetPiece(EFootballMatchPhase::SetPiece_FreeKick, false);
     }
     else if (AwayTeam)
     {
         AwayTeam->OnSetPiece(EFootballMatchPhase::SetPiece_FreeKick, true);
-        if (HomeTeam) HomeTeam->OnSetPiece(EFootballMatchPhase::SetPiece_FreeKick, false);
+        if (HomeTeam)
+            HomeTeam->OnSetPiece(EFootballMatchPhase::SetPiece_FreeKick, false);
     }
 
     ResetBall(EFootballMatchPhase::SetPiece_FreeKick);
@@ -372,12 +418,14 @@ void AFootballGameMode::AwardPenalty(EFootballTeamSide::Type Team, FVector Locat
     if (Team == EFootballTeamSide::Home && HomeTeam)
     {
         HomeTeam->OnSetPiece(EFootballMatchPhase::SetPiece_Penalty, true);
-        if (AwayTeam) AwayTeam->OnSetPiece(EFootballMatchPhase::SetPiece_Penalty, false);
+        if (AwayTeam)
+            AwayTeam->OnSetPiece(EFootballMatchPhase::SetPiece_Penalty, false);
     }
     else if (AwayTeam)
     {
         AwayTeam->OnSetPiece(EFootballMatchPhase::SetPiece_Penalty, true);
-        if (HomeTeam) HomeTeam->OnSetPiece(EFootballMatchPhase::SetPiece_Penalty, false);
+        if (HomeTeam)
+            HomeTeam->OnSetPiece(EFootballMatchPhase::SetPiece_Penalty, false);
     }
 
     ResetBall(EFootballMatchPhase::SetPiece_Penalty);
@@ -392,14 +440,16 @@ void AFootballGameMode::AwardCorner(EFootballTeamSide::Type Team)
     if (Team == EFootballTeamSide::Home && HomeTeam)
     {
         HomeTeam->OnSetPiece(EFootballMatchPhase::SetPiece_Corner, true);
-        HomeTeam->Corners++;
-        if (AwayTeam) AwayTeam->OnSetPiece(EFootballMatchPhase::SetPiece_Corner, false);
+        HomeTeam->AddCorner();
+        if (AwayTeam)
+            AwayTeam->OnSetPiece(EFootballMatchPhase::SetPiece_Corner, false);
     }
     else if (AwayTeam)
     {
         AwayTeam->OnSetPiece(EFootballMatchPhase::SetPiece_Corner, true);
-        AwayTeam->Corners++;
-        if (HomeTeam) HomeTeam->OnSetPiece(EFootballMatchPhase::SetPiece_Corner, false);
+        AwayTeam->AddCorner();
+        if (HomeTeam)
+            HomeTeam->OnSetPiece(EFootballMatchPhase::SetPiece_Corner, false);
     }
 
     ResetBall(EFootballMatchPhase::SetPiece_Corner);
@@ -414,12 +464,14 @@ void AFootballGameMode::AwardGoalKick(EFootballTeamSide::Type Team)
     if (Team == EFootballTeamSide::Home && HomeTeam)
     {
         HomeTeam->OnSetPiece(EFootballMatchPhase::SetPiece_GoalKick, true);
-        if (AwayTeam) AwayTeam->OnSetPiece(EFootballMatchPhase::SetPiece_GoalKick, false);
+        if (AwayTeam)
+            AwayTeam->OnSetPiece(EFootballMatchPhase::SetPiece_GoalKick, false);
     }
     else if (AwayTeam)
     {
         AwayTeam->OnSetPiece(EFootballMatchPhase::SetPiece_GoalKick, true);
-        if (HomeTeam) HomeTeam->OnSetPiece(EFootballMatchPhase::SetPiece_GoalKick, false);
+        if (HomeTeam)
+            HomeTeam->OnSetPiece(EFootballMatchPhase::SetPiece_GoalKick, false);
     }
 
     ResetBall(EFootballMatchPhase::SetPiece_GoalKick);
@@ -434,19 +486,22 @@ void AFootballGameMode::AwardThrowIn(EFootballTeamSide::Type Team, FVector Locat
     if (Team == EFootballTeamSide::Home && HomeTeam)
     {
         HomeTeam->OnSetPiece(EFootballMatchPhase::SetPiece_ThrowIn, true);
-        if (AwayTeam) AwayTeam->OnSetPiece(EFootballMatchPhase::SetPiece_ThrowIn, false);
+        if (AwayTeam)
+            AwayTeam->OnSetPiece(EFootballMatchPhase::SetPiece_ThrowIn, false);
     }
     else if (AwayTeam)
     {
         AwayTeam->OnSetPiece(EFootballMatchPhase::SetPiece_ThrowIn, true);
-        if (HomeTeam) HomeTeam->OnSetPiece(EFootballMatchPhase::SetPiece_ThrowIn, false);
+        if (HomeTeam)
+            HomeTeam->OnSetPiece(EFootballMatchPhase::SetPiece_ThrowIn, false);
     }
 
     ResetBall(EFootballMatchPhase::SetPiece_ThrowIn);
     OnMatchEvent.Broadcast(FGameplayTag::RequestGameplayTag("SetPiece.ThrowIn"), nullptr, nullptr);
 }
 
-bool AFootballGameMode::ProcessSubstitution(EFootballTeamSide::Type Team, AFootballPlayerCharacter* PlayerOut, AFootballPlayerCharacter* PlayerIn)
+bool AFootballGameMode::ProcessSubstitution(EFootballTeamSide::Type Team, AFootballPlayerCharacter* PlayerOut,
+                                            AFootballPlayerCharacter* PlayerIn)
 {
     if (!bAllowSubstitutions)
     {
@@ -478,13 +533,13 @@ void AFootballGameMode::SetGameMode(EFootballGameMode::Type Mode)
     // Adjust team sizes based on mode
     switch (Mode)
     {
-        case EFootballGameMode::OneVOne_StrikerVsKeeper:
-            // Only spawn 1 striker and 1 keeper per team
-            break;
-        case EFootballGameMode::TrainingMatch_11v11:
-        default:
-            // Full 11v11
-            break;
+    case EFootballGameMode::OneVOne_StrikerVsKeeper:
+        // Only spawn 1 striker and 1 keeper per team
+        break;
+    case EFootballGameMode::TrainingMatch_11v11:
+    default:
+        // Full 11v11
+        break;
     }
 }
 
@@ -510,12 +565,12 @@ void AFootballGameMode::SpawnPlayers()
 
 void AFootballGameMode::SpawnTeamPlayers(AFootballTeam* Team, EFootballTeamSide::Type Side)
 {
-    if (!Team || !FormationPositions.Contains(Team->CurrentFormation))
+    if (!Team || !Team->GetFormationPositions().Contains(Team->GetCurrentFormation()))
     {
         return;
     }
 
-    const TArray<FVector>& Positions = FormationPositions[Team->CurrentFormation];
+    const TArray<FVector>& Positions = Team->GetFormationPositions()[Team->GetCurrentFormation()];
     FVector TeamCenter = Team->GetActorLocation();
 
     // Adjust for side
@@ -546,7 +601,9 @@ void AFootballGameMode::SpawnTeamPlayers(AFootballTeam* Team, EFootballTeamSide:
     }
 }
 
-AFootballPlayerCharacter* AFootballGameMode::SpawnPlayer(EFootballTeamSide::Type TeamSide, EFootballPlayerRole::Type Role, FVector Location, FRotator Rotation)
+AFootballPlayerCharacter* AFootballGameMode::SpawnPlayer(EFootballTeamSide::Type TeamSide,
+                                                         EFootballPlayerRole::Type InRole, FVector Location,
+                                                         FRotator Rotation)
 {
     if (!PlayerCharacterClass)
     {
@@ -556,14 +613,15 @@ AFootballPlayerCharacter* AFootballGameMode::SpawnPlayer(EFootballTeamSide::Type
     FActorSpawnParameters SpawnParams;
     SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 
-    AFootballPlayerCharacter* Player = GetWorld()->SpawnActor<AFootballPlayerCharacter>(PlayerCharacterClass, Location, Rotation, SpawnParams);
+    AFootballPlayerCharacter* Player =
+        GetWorld()->SpawnActor<AFootballPlayerCharacter>(PlayerCharacterClass, Location, Rotation, SpawnParams);
     if (Player)
     {
-        Player->SetPlayerRole(Role);
+        Player->SetPlayerRole(InRole);
         AFootballTeam* Team = (TeamSide == EFootballTeamSide::Home) ? HomeTeam : AwayTeam;
         if (Team)
         {
-            Team->AddPlayer(Player, Role);
+            Team->AddPlayer(Player, InRole);
         }
     }
 
@@ -581,7 +639,8 @@ void AFootballGameMode::UpdateMatchTime(float DeltaTime)
 
     // Check for half time
     float HalfSeconds = HalfDuration * 60.0f;
-    if (MatchTimeElapsed >= HalfSeconds && CurrentPhase != EFootballMatchPhase::HalfTime && CurrentPhase != EFootballMatchPhase::FullTime)
+    if (MatchTimeElapsed >= HalfSeconds && CurrentPhase != EFootballMatchPhase::HalfTime &&
+        CurrentPhase != EFootballMatchPhase::FullTime)
     {
         HandleHalfTime();
     }
@@ -628,30 +687,39 @@ void AFootballGameMode::HandleHalfTime()
     SetMatchPhase(EFootballMatchPhase::HalfTime);
     bIsMatchActive = false;
 
-    if (HomeTeam) HomeTeam->OnHalfTime();
-    if (AwayTeam) AwayTeam->OnHalfTime();
+    if (HomeTeam)
+        HomeTeam->OnHalfTime();
+    if (AwayTeam)
+        AwayTeam->OnHalfTime();
 
     OnMatchEvent.Broadcast(FGameplayTag::RequestGameplayTag("Match.HalfTime"), nullptr, nullptr);
 
     // Auto-resume after delay for second half
     FTimerHandle ResumeTimer;
-    GetWorldTimerManager().SetTimer(ResumeTimer, [this]()
-    {
-        CurrentPhase = EFootballMatchPhase::KickOff;
-        // Away team kicks off second half
-        if (HomeTeam) HomeTeam->OnKickOff(false);
-        if (AwayTeam) AwayTeam->OnKickOff(true);
-        ResetBall(EFootballMatchPhase::KickOff);
-        bIsMatchActive = true;
-    }, 15.0f, false);
+    GetWorldTimerManager().SetTimer(
+        ResumeTimer,
+        [this]()
+        {
+            CurrentPhase = EFootballMatchPhase::KickOff;
+            // Away team kicks off second half
+            if (HomeTeam)
+                HomeTeam->OnKickOff(false);
+            if (AwayTeam)
+                AwayTeam->OnKickOff(true);
+            ResetBall(EFootballMatchPhase::KickOff);
+            bIsMatchActive = true;
+        },
+        15.0f, false);
 }
 
 void AFootballGameMode::HandleFullTime()
 {
     EndMatch();
 
-    if (HomeTeam) HomeTeam->OnFullTime();
-    if (AwayTeam) AwayTeam->OnFullTime();
+    if (HomeTeam)
+        HomeTeam->OnFullTime();
+    if (AwayTeam)
+        AwayTeam->OnFullTime();
 
     OnMatchEvent.Broadcast(FGameplayTag::RequestGameplayTag("Match.FullTime"), nullptr, nullptr);
 }
@@ -673,7 +741,8 @@ void AFootballGameMode::ProcessBallOutOfPlay()
         // Simplified - would check actual field boundaries
         if (FMath::Abs(BallLoc.Y) > 6000.0f) // Touchline
         {
-            AwardThrowIn(LastTouchTeam == EFootballTeamSide::Home ? EFootballTeamSide::Away : EFootballTeamSide::Home, BallLoc);
+            AwardThrowIn(LastTouchTeam == EFootballTeamSide::Home ? EFootballTeamSide::Away : EFootballTeamSide::Home,
+                         BallLoc);
         }
         else if (BallLoc.X > 5200.0f) // Goal line home side
         {
@@ -772,7 +841,8 @@ void AFootballGameMode::InitializeTeams()
     SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
     // Spawn home team
-    HomeTeam = GetWorld()->SpawnActor<AFootballTeam>(TeamClass, FVector(-5000, 0, 0), FRotator::ZeroRotator, SpawnParams);
+    HomeTeam =
+        GetWorld()->SpawnActor<AFootballTeam>(TeamClass, FVector(-5000, 0, 0), FRotator::ZeroRotator, SpawnParams);
     if (HomeTeam)
     {
         HomeTeam->InitializeTeam(EFootballTeamSide::Home, TEXT("Craquez FC"), FFootballTacticalInstructions());
@@ -791,8 +861,10 @@ void AFootballGameMode::InitializeTeams()
     {
         TeamManager->SetTeams(HomeTeam, AwayTeam);
         TeamManager->SetBall(BallComponent);
-        if (HomeTeam) HomeTeam->SetTeamManager(TeamManager);
-        if (AwayTeam) AwayTeam->SetTeamManager(TeamManager);
+        if (HomeTeam)
+            HomeTeam->SetTeamManager(TeamManager);
+        if (AwayTeam)
+            AwayTeam->SetTeamManager(TeamManager);
     }
 }
 

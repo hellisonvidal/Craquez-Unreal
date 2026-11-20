@@ -12,15 +12,9 @@ public:
     virtual void StartupModule() override;
     virtual void ShutdownModule() override;
 
-    static FFootballCoreModule& Get()
-    {
-        return FModuleManager::LoadModuleChecked<FFootballCoreModule>("FootballCore");
-    }
+    static FFootballCoreModule& Get() { return FModuleManager::LoadModuleChecked<FFootballCoreModule>("FootballCore"); }
 
-    static bool IsAvailable()
-    {
-        return FModuleManager::Get().IsModuleLoaded("FootballCore");
-    }
+    static bool IsAvailable() { return FModuleManager::Get().IsModuleLoaded("FootballCore"); }
 };
 
 // Log category

@@ -16,10 +16,7 @@ public:
         return FModuleManager::LoadModuleChecked<FFootballCoreGameplayModule>("FootballCoreGameplay");
     }
 
-    static bool IsAvailable()
-    {
-        return FModuleManager::Get().IsModuleLoaded("FootballCoreGameplay");
-    }
+    static bool IsAvailable() { return FModuleManager::Get().IsModuleLoaded("FootballCoreGameplay"); }
 };
 
 DECLARE_LOG_CATEGORY_EXTERN(LogFootballCoreGameplay, Log, All);

@@ -12,7 +12,76 @@ class UFootballBallComponent;
 class AFootballPlayerCharacter;
 class AFootballTeam;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnStateCorrected, int32, FrameNumber, FVector, CorrectedPosition, FVector, CorrectedVelocity);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnStateCorrected, int32, FrameNumber, FVector, CorrectedPosition,
+                                               FVector, CorrectedVelocity);
+
+/**
+ * Deterministic State Structure - Fixed-point for network replication
+ */
+USTRUCT(BlueprintType)
+struct FFootballDeterministicState
+{
+    GENERATED_BODY()
+
+    UPROPERTY()
+    int32 FrameNumber = 0;
+
+    UPROPERTY()
+    FFootballFixedVector Position;
+
+    UPROPERTY()
+    FFootballFixedVector Velocity;
+
+    UPROPERTY()
+    FFootballFixedVector AngularVelocity;
+
+    UPROPERTY()
+    FFootballFixedRotator Rotation;
+
+    UPROPERTY()
+    TEnumAsByte<EFootballBallState::Type> BallState = EFootballBallState::Free;
+
+    UPROPERTY()
+    float Stamina = 100.0f;
+
+    UPROPERTY()
+    FGameplayTag ActionState;
+
+    UPROPERTY()
+    int32 InputFlags = 0; // Packed input state
+
+    FFootballDeterministicState() {}
+    FFootballDeterministicState(int32 InFrame) : FrameNumber(InFrame) {}
+
+    bool IsValid() const { return FrameNumber >= 0; }
+};
+
+/**
+ * Input Frame - For deterministic input replay
+ */
+USTRUCT(BlueprintType)
+struct FFootballInputFrame
+{
+    GENERATED_BODY()
+
+    UPROPERTY()
+    int32 FrameNumber = 0;
+
+    UPROPERTY()
+    FVector2D MoveInput = FVector2D::ZeroVector;
+
+    UPROPERTY()
+    FVector2D LookInput = FVector2D::ZeroVector;
+
+    UPROPERTY()
+    int32 ActionBits = 0; // Packed action buttons
+
+    UPROPERTY()
+    float DeltaTime = 1.0f / 60.0f;
+
+    FFootballInputFrame() {}
+    FFootballInputFrame(int32 InFrame) : FrameNumber(InFrame) {}
+};
 
 /**
  * Deterministic Replication Component - Ensures deterministic physics simulation across network
@@ -27,7 +96,8 @@ public:
     UFootballDeterministicReplicationComponent();
 
     virtual void BeginPlay() override;
-    virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+    virtual void TickComponent(float DeltaTime, ELevelTick TickType,
+                               FActorComponentTickFunction* ThisTickFunction) override;
 
     // Configuration
     UFUNCTION(BlueprintCallable, Category = "Football|Network|Deterministic")
@@ -50,10 +120,15 @@ public:
     void RollbackToFrame(int32 FrameNumber);
 
     UFUNCTION(BlueprintCallable, Category = "Football|Network|Deterministic")
-    void Server_SendState(int32 FrameNumber, const FFootballFixedVector& Position, const FFootballFixedVector& Velocity, const FFootballFixedRotator& Rotation);
+    void CorrectState(int32 FrameNumber);
 
     UFUNCTION(BlueprintCallable, Category = "Football|Network|Deterministic")
-    void Client_ReceiveState(int32 FrameNumber, const FFootballFixedVector& Position, const FFootballFixedVector& Velocity, const FFootballFixedRotator& Rotation);
+    void Server_SendState(int32 FrameNumber, const FFootballFixedVector& Position, const FFootballFixedVector& Velocity,
+                          const FFootballFixedRotator& Rotation);
+
+    UFUNCTION(BlueprintCallable, Category = "Football|Network|Deterministic")
+    void Client_ReceiveState(int32 FrameNumber, const FFootballFixedVector& Position,
+                             const FFootballFixedVector& Velocity, const FFootballFixedRotator& Rotation);
 
     // Ball-specific
     UFUNCTION(BlueprintCallable, Category = "Football|Network|Deterministic")
@@ -79,28 +154,36 @@ public:
 
 protected:
     // Settings
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Football|Network|Deterministic", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Football|Network|Deterministic",
+              meta = (AllowPrivateAccess = "true"))
     bool bDeterministicMode = true;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Football|Network|Deterministic", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Football|Network|Deterministic",
+              meta = (AllowPrivateAccess = "true"))
     float FixedTimeStep = 1.0f / 60.0f; // 60Hz
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Football|Network|Deterministic", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Football|Network|Deterministic",
+              meta = (AllowPrivateAccess = "true"))
     int32 MaxPredictionFrames = 4;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Football|Network|Deterministic", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Football|Network|Deterministic",
+              meta = (AllowPrivateAccess = "true"))
     int32 StateHistorySize = 120; // 2 seconds at 60Hz
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Football|Network|Deterministic", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Football|Network|Deterministic",
+              meta = (AllowPrivateAccess = "true"))
     float PositionTolerance = 10.0f; // cm
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Football|Network|Deterministic", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Football|Network|Deterministic",
+              meta = (AllowPrivateAccess = "true"))
     float VelocityTolerance = 50.0f; // cm/s
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Football|Network|Deterministic", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Football|Network|Deterministic",
+              meta = (AllowPrivateAccess = "true"))
     bool bInterpolate = true;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Football|Network|Deterministic", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Football|Network|Deterministic",
+              meta = (AllowPrivateAccess = "true"))
     float InterpolationTime = 0.1f; // 100ms interpolation buffer
 
     // State History
@@ -143,78 +226,9 @@ protected:
 private:
     void UpdateInterpolation(float DeltaTime);
     void CheckStateDivergence();
-    void CorrectState(int32 FrameNumber);
     void SendStateToServer();
     void ReceiveStateFromServer();
     bool StatesMatch(const FFootballDeterministicState& A, const FFootballDeterministicState& B) const;
-};
-
-/**
- * Deterministic State Structure - Fixed-point for network replication
- */
-USTRUCT(BlueprintType)
-struct FFootballDeterministicState
-{
-    GENERATED_BODY()
-
-    UPROPERTY()
-    int32 FrameNumber = 0;
-
-    UPROPERTY()
-    FFootballFixedVector Position;
-
-    UPROPERTY()
-    FFootballFixedVector Velocity;
-
-    UPROPERTY()
-    FFootballFixedVector AngularVelocity;
-
-    UPROPERTY()
-    FFootballFixedRotator Rotation;
-
-    UPROPERTY()
-    EFootballBallState::Type BallState = EFootballBallState::Free;
-
-    UPROPERTY()
-    float Stamina = 100.0f;
-
-    UPROPERTY()
-    FGameplayTag ActionState;
-
-    UPROPERTY()
-    uint32 InputFlags = 0; // Packed input state
-
-    FFootballDeterministicState() {}
-    FFootballDeterministicState(int32 InFrame) : FrameNumber(InFrame) {}
-
-    bool IsValid() const { return FrameNumber >= 0; }
-};
-
-/**
- * Input Frame - For deterministic input replay
- */
-USTRUCT(BlueprintType)
-struct FFootballInputFrame
-{
-    GENERATED_BODY()
-
-    UPROPERTY()
-    int32 FrameNumber = 0;
-
-    UPROPERTY()
-    FVector2D MoveInput = FVector2D::ZeroVector;
-
-    UPROPERTY()
-    FVector2D LookInput = FVector2D::ZeroVector;
-
-    UPROPERTY()
-    uint32 ActionBits = 0; // Packed action buttons
-
-    UPROPERTY()
-    float DeltaTime = 1.0f / 60.0f;
-
-    FFootballInputFrame() {}
-    FFootballInputFrame(int32 InFrame) : FrameNumber(InFrame) {}
 };
 
 /**
@@ -360,7 +374,8 @@ public:
     UFootballNetworkPredictionComponent();
 
     virtual void BeginPlay() override;
-    virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+    virtual void TickComponent(float DeltaTime, ELevelTick TickType,
+                               FActorComponentTickFunction* ThisTickFunction) override;
 
     // Prediction
     UFUNCTION(BlueprintCallable, Category = "Football|Network|Prediction")
@@ -376,13 +391,16 @@ public:
     void ReconcileState();
 
     // Settings
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Football|Network|Prediction", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Football|Network|Prediction",
+              meta = (AllowPrivateAccess = "true"))
     bool bEnablePrediction = true;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Football|Network|Prediction", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Football|Network|Prediction",
+              meta = (AllowPrivateAccess = "true"))
     float MaxPredictionError = 50.0f; // cm
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Football|Network|Prediction", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Football|Network|Prediction",
+              meta = (AllowPrivateAccess = "true"))
     float ReconciliationSpeed = 10.0f; // cm/s
 
 protected:
@@ -427,10 +445,12 @@ public:
     bool CheckHitAtTime(AActor* Target, float ServerTime, float ClientPing, FHitResult& OutHit);
 
     // Settings
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Football|Network|LagCompensation", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Football|Network|LagCompensation",
+              meta = (AllowPrivateAccess = "true"))
     float MaxRewindTime = 0.5f; // 500ms max rewind
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Football|Network|LagCompensation", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Football|Network|LagCompensation",
+              meta = (AllowPrivateAccess = "true"))
     int32 MaxHistoryFrames = 60; // 1 second at 60Hz
 
 protected:

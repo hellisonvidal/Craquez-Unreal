@@ -256,7 +256,8 @@ void UFootballMenuWidget::BindButtonEvents()
     }
     if (GraphicsQualityCombo)
     {
-        GraphicsQualityCombo->OnSelectionChanged.AddDynamic(this, &UFootballMenuWidget::OnGraphicsQualityChanged);
+        GraphicsQualityCombo->OnSelectionChanged.AddDynamic(
+            this, &UFootballMenuWidget::HandleGraphicsQualitySelectionChanged);
     }
     if (MasterVolumeSlider)
     {
@@ -264,15 +265,49 @@ void UFootballMenuWidget::BindButtonEvents()
     }
     if (DifficultyCombo)
     {
-        DifficultyCombo->OnSelectionChanged.AddDynamic(this, &UFootballMenuWidget::OnDifficultyChanged);
+        DifficultyCombo->OnSelectionChanged.AddDynamic(this, &UFootballMenuWidget::HandleDifficultySelectionChanged);
     }
     if (CameraStyleCombo)
     {
-        CameraStyleCombo->OnSelectionChanged.AddDynamic(this, &UFootballMenuWidget::OnCameraStyleChanged);
+        CameraStyleCombo->OnSelectionChanged.AddDynamic(this, &UFootballMenuWidget::HandleCameraStyleSelectionChanged);
     }
     if (FormationCombo)
     {
-        FormationCombo->OnSelectionChanged.AddDynamic(this, &UFootballMenuWidget::OnFormationChanged);
+        FormationCombo->OnSelectionChanged.AddDynamic(this, &UFootballMenuWidget::HandleFormationSelectionChanged);
+    }
+}
+
+void UFootballMenuWidget::HandleGraphicsQualitySelectionChanged(FString SelectedItem, ESelectInfo::Type SelectionType)
+{
+    if (GraphicsQualityCombo)
+    {
+        OnGraphicsQualityChanged(GraphicsQualityCombo->GetSelectedIndex());
+    }
+}
+
+void UFootballMenuWidget::HandleDifficultySelectionChanged(FString SelectedItem, ESelectInfo::Type SelectionType)
+{
+    if (DifficultyCombo)
+    {
+        OnDifficultyChanged(DifficultyCombo->GetSelectedIndex());
+    }
+}
+
+void UFootballMenuWidget::HandleCameraStyleSelectionChanged(FString SelectedItem, ESelectInfo::Type SelectionType)
+{
+    if (CameraStyleCombo)
+    {
+        OnCameraStyleChanged(CameraStyleCombo->GetSelectedIndex());
+    }
+}
+
+void UFootballMenuWidget::HandleFormationSelectionChanged(FString SelectedItem, ESelectInfo::Type SelectionType)
+{
+    FString DigitsOnly = SelectedItem.Replace(TEXT("-"), TEXT(""));
+    int32 FormationID = FCString::Atoi(*DigitsOnly);
+    if (FormationID > 0)
+    {
+        OnFormationChanged(FormationID);
     }
 }
 
@@ -291,12 +326,18 @@ void UFootballMenuWidget::ShowPanel(UVerticalBox* Panel)
 
 void UFootballMenuWidget::HideAllPanels()
 {
-    if (MainMenuPanel) MainMenuPanel->SetVisibility(ESlateVisibility::Hidden);
-    if (PauseMenuPanel) PauseMenuPanel->SetVisibility(ESlateVisibility::Hidden);
-    if (SettingsPanel) SettingsPanel->SetVisibility(ESlateVisibility::Hidden);
-    if (TeamManagementPanel) TeamManagementPanel->SetVisibility(ESlateVisibility::Hidden);
-    if (TacticsPanel) TacticsPanel->SetVisibility(ESlateVisibility::Hidden);
-    if (ReplayPanel) ReplayPanel->SetVisibility(ESlateVisibility::Hidden);
+    if (MainMenuPanel)
+        MainMenuPanel->SetVisibility(ESlateVisibility::Hidden);
+    if (PauseMenuPanel)
+        PauseMenuPanel->SetVisibility(ESlateVisibility::Hidden);
+    if (SettingsPanel)
+        SettingsPanel->SetVisibility(ESlateVisibility::Hidden);
+    if (TeamManagementPanel)
+        TeamManagementPanel->SetVisibility(ESlateVisibility::Hidden);
+    if (TacticsPanel)
+        TacticsPanel->SetVisibility(ESlateVisibility::Hidden);
+    if (ReplayPanel)
+        ReplayPanel->SetVisibility(ESlateVisibility::Hidden);
 }
 
 void UFootballMenuWidget::InitializeSettings()
@@ -333,9 +374,12 @@ void UFootballMenuWidget::InitializeSettings()
     }
 
     // Set default volumes
-    if (MasterVolumeSlider) MasterVolumeSlider->SetValue(1.0f);
-    if (MusicVolumeSlider) MusicVolumeSlider->SetValue(0.8f);
-    if (SFXVolumeSlider) SFXVolumeSlider->SetValue(1.0f);
+    if (MasterVolumeSlider)
+        MasterVolumeSlider->SetValue(1.0f);
+    if (MusicVolumeSlider)
+        MusicVolumeSlider->SetValue(0.8f);
+    if (SFXVolumeSlider)
+        SFXVolumeSlider->SetValue(1.0f);
 }
 
 void UFootballMenuWidget::InitializeTeamManagement()

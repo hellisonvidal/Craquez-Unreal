@@ -11,7 +11,8 @@ class AFootballTeam;
 class AFootballPlayerCharacter;
 class UFootballBallComponent;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnPossessionChanged, EFootballTeamSide::Type, NewPossessionTeam, AFootballPlayerCharacter*, Player);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnPossessionChanged, EFootballTeamSide::Type, NewPossessionTeam,
+                                             AFootballPlayerCharacter*, Player);
 
 /**
  * Football Team Manager - Central coordinator for match state:
@@ -116,31 +117,39 @@ public:
 
 protected:
     // Teams
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|TeamManager", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|TeamManager",
+              meta = (AllowPrivateAccess = "true"))
     TObjectPtr<AFootballTeam> HomeTeam = nullptr;
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|TeamManager", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|TeamManager",
+              meta = (AllowPrivateAccess = "true"))
     TObjectPtr<AFootballTeam> AwayTeam = nullptr;
 
     // Ball
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|TeamManager", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|TeamManager",
+              meta = (AllowPrivateAccess = "true"))
     TObjectPtr<UFootballBallComponent> Ball = nullptr;
 
     // Possession
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|TeamManager", meta = (AllowPrivateAccess = "true"))
-    EFootballTeamSide::Type PossessionTeam = EFootballTeamSide::Neutral;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|TeamManager",
+              meta = (AllowPrivateAccess = "true"))
+    TEnumAsByte<EFootballTeamSide::Type> PossessionTeam = EFootballTeamSide::Neutral;
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|TeamManager", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|TeamManager",
+              meta = (AllowPrivateAccess = "true"))
     TObjectPtr<AFootballPlayerCharacter> PossessionPlayer = nullptr;
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|TeamManager", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|TeamManager",
+              meta = (AllowPrivateAccess = "true"))
     float PossessionStartTime = 0.0f;
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|TeamManager", meta = (AllowPrivateAccess = "true"))
-    TMap<EFootballTeamSide::Type, float> TeamPossessionTime;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|TeamManager",
+              meta = (AllowPrivateAccess = "true"))
+    TMap<TEnumAsByte<EFootballTeamSide::Type>, float> TeamPossessionTime;
 
     // Match Stats
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Statistics", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Statistics",
+              meta = (AllowPrivateAccess = "true"))
     FFootballMatchStats MatchStats;
 
     // Referee
@@ -148,7 +157,7 @@ protected:
     bool bAdvantagePlaying = false;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Referee", meta = (AllowPrivateAccess = "true"))
-    EFootballTeamSide::Type AdvantageTeam = EFootballTeamSide::Neutral;
+    TEnumAsByte<EFootballTeamSide::Type> AdvantageTeam = EFootballTeamSide::Neutral;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Referee", meta = (AllowPrivateAccess = "true"))
     float AdvantageEndTime = 0.0f;
@@ -164,6 +173,15 @@ protected:
     int32 HistoryFrame = 0;
 
 private:
+    UFUNCTION()
+    void OnBallKicked(const FVector& Impulse, const FVector& Spin, AActor* KickInstigator);
+
+    UFUNCTION()
+    void OnBallCollision(const FHitResult& HitResult, AActor* OtherActor);
+
+    UFUNCTION()
+    void OnBallStateChanged(EFootballBallState::Type NewState);
+
     void UpdatePossession(float DeltaTime);
     void UpdateBallTracking(float DeltaTime);
     void UpdateAdvantage(float DeltaTime);

@@ -14,4 +14,4 @@ void FCraquezModule::ShutdownModule()
     UE_LOG(LogTemp, Log, TEXT("Craquez Module Shutdown"));
 }
 
-IMPLEMENT_MODULE(FCraquezModule, Craquez)
+IMPLEMENT_PRIMARY_GAME_MODULE(FCraquezModule, Craquez, "Craquez");

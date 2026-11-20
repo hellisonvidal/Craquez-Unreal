@@ -3,7 +3,8 @@
 #include "BehaviorTree/FootballBTTask.h"
 #include "AIController.h"
 #include "BehaviorTree/BlackboardComponent.h"
-#include "BehaviorTree/BTTask_MoveTo.h"
+#include "BehaviorTree/Tasks/BTTask_MoveTo.h"
+#include "Navigation/PathFollowingComponent.h"
 #include "Player/FootballPlayerCharacter.h"
 #include "Team/FootballTeam.h"
 #include "Team/FootballTeamManager.h"
@@ -85,7 +86,7 @@ EBTNodeResult::Type UBTTask_MoveToBall::ExecuteTask(UBehaviorTreeComponent& Owne
         FAIMoveRequest MoveRequest;
         MoveRequest.SetGoalLocation(BallLocation);
         MoveRequest.SetAcceptanceRadius(AcceptanceRadius);
-        MoveRequest.SetStopOnOverlap(bStopOnOverlap);
+        MoveRequest.SetReachTestIncludesAgentRadius(bStopOnOverlap);
 
         FNavPathSharedPtr Path;
         AIController->MoveTo(MoveRequest, &Path);
@@ -397,7 +398,8 @@ EBTNodeResult::Type UBTTask_MarkOpponent::ExecuteTask(UBehaviorTreeComponent& Ow
         return EBTNodeResult::Failed;
     }
 
-    AFootballPlayerCharacter* Target = Cast<AFootballPlayerCharacter>(Blackboard->GetValueAsObject(TargetPlayerKey.SelectedKeyName));
+    AFootballPlayerCharacter* Target =
+        Cast<AFootballPlayerCharacter>(Blackboard->GetValueAsObject(TargetPlayerKey.SelectedKeyName));
     if (!Target)
     {
         return EBTNodeResult::Failed;
@@ -419,7 +421,8 @@ void UBTTask_MarkOpponent::TickTask(UBehaviorTreeComponent& OwnerComp, uint8* No
         return;
     }
 
-    AFootballPlayerCharacter* Target = Cast<AFootballPlayerCharacter>(Blackboard->GetValueAsObject(TargetPlayerKey.SelectedKeyName));
+    AFootballPlayerCharacter* Target =
+        Cast<AFootballPlayerCharacter>(Blackboard->GetValueAsObject(TargetPlayerKey.SelectedKeyName));
     UFootballBallComponent* Ball = GetBall(OwnerComp);
 
     if (!Target || !Ball)
@@ -718,11 +721,14 @@ EBTNodeResult::Type UBTTask_GoalkeeperSave::ExecuteTask(UBehaviorTreeComponent& 
     {
         // React after reaction time
         FTimerHandle TimerHandle;
-        Character->GetWorldTimerManager().SetTimer(TimerHandle, [Character, PredictedPos, this]()
-        {
-            FVector Direction = (PredictedPos - Character->GetActorLocation()).GetSafeNormal();
-            Character->GoalkeeperDive(Direction);
-        }, ReactionTime, false);
+        Character->GetWorldTimerManager().SetTimer(
+            TimerHandle,
+            [Character, PredictedPos, this]()
+            {
+                FVector Direction = (PredictedPos - Character->GetActorLocation()).GetSafeNormal();
+                Character->GoalkeeperDive(Direction);
+            },
+            ReactionTime, false);
 
         return EBTNodeResult::Succeeded;
     }
@@ -741,7 +747,8 @@ EBTNodeResult::Type UBTTask_GoalkeeperDistribute::ExecuteTask(UBehaviorTreeCompo
     AFootballPlayerCharacter* Character = GetFootballCharacter(OwnerComp);
     AFootballTeam* Team = GetTeam(OwnerComp);
 
-    if (!Character || !Team || Character->GetPlayerRole() != EFootballPlayerRole::Goalkeeper || !Character->HasBallPossession())
+    if (!Character || !Team || Character->GetPlayerRole() != EFootballPlayerRole::Goalkeeper ||
+        !Character->HasBallPossession())
     {
         return EBTNodeResult::Failed;
     }
@@ -764,7 +771,8 @@ EBTNodeResult::Type UBTTask_GoalkeeperDistribute::ExecuteTask(UBehaviorTreeCompo
             }
 
             EFootballPlayerRole::Type Role = Player->GetPlayerRole();
-            if (Role == EFootballPlayerRole::Striker || Role == EFootballPlayerRole::LeftWinger || Role == EFootballPlayerRole::RightWinger)
+            if (Role == EFootballPlayerRole::Striker || Role == EFootballPlayerRole::LeftWinger ||
+                Role == EFootballPlayerRole::RightWinger)
             {
                 Score += 0.3f;
             }

@@ -10,7 +10,11 @@
 #include "Animation/AnimMontage.h"
 #include "ControlRigComponent.h"
 #include "FootballCoreTypes.h"
+#include "BallPhysics/FootballBallActor.h"
 #include "BallPhysics/FootballBallComponent.h"
+#include "Team/FootballTeam.h"
+#include "Tactical/FootballTacticalComponent.h"
+#include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "DrawDebugHelpers.h"
 
@@ -51,21 +55,23 @@ AFootballPlayerCharacter::AFootballPlayerCharacter()
     // Replication
     bReplicates = true;
     SetReplicateMovement(true);
-    NetUpdateFrequency = 60.0f;
-    MinNetUpdateFrequency = 30.0f;
+    SetNetUpdateFrequency(60.0f);
+    SetMinNetUpdateFrequency(30.0f);
 }
 
 void AFootballPlayerCharacter::BeginPlay()
 {
     Super::BeginPlay();
 
-    // Initialize stamina
+    // Initialize stamina & action state
     CurrentStamina = Attributes.Stamina;
+    CurrentActionState = FFootballTags::Player_Idle;
 
     // Setup input mapping
     if (APlayerController* PC = Cast<APlayerController>(GetController()))
     {
-        if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PC->GetLocalPlayer()))
+        if (UEnhancedInputLocalPlayerSubsystem* Subsystem =
+                ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PC->GetLocalPlayer()))
         {
             if (FootballInputMapping)
             {
@@ -83,7 +89,7 @@ void AFootballPlayerCharacter::BeginPlay()
     // Initialize Control Rig
     if (ControlRigComponent)
     {
-        ControlRigComponent->OnInit();
+        ControlRigComponent->Initialize();
     }
 }
 
@@ -115,24 +121,30 @@ void AFootballPlayerCharacter::SetupPlayerInputComponent(UInputComponent* Player
         }
         if (SprintAction)
         {
-            EnhancedInput->BindAction(SprintAction, ETriggerEvent::Started, this, &AFootballPlayerCharacter::OnSprintPressed);
-            EnhancedInput->BindAction(SprintAction, ETriggerEvent::Completed, this, &AFootballPlayerCharacter::OnSprintReleased);
+            EnhancedInput->BindAction(SprintAction, ETriggerEvent::Started, this,
+                                      &AFootballPlayerCharacter::OnSprintPressed);
+            EnhancedInput->BindAction(SprintAction, ETriggerEvent::Completed, this,
+                                      &AFootballPlayerCharacter::OnSprintReleased);
         }
         if (PassAction)
         {
-            EnhancedInput->BindAction(PassAction, ETriggerEvent::Started, this, &AFootballPlayerCharacter::OnPassPressed);
+            EnhancedInput->BindAction(PassAction, ETriggerEvent::Started, this,
+                                      &AFootballPlayerCharacter::OnPassPressed);
         }
         if (ShootAction)
         {
-            EnhancedInput->BindAction(ShootAction, ETriggerEvent::Started, this, &AFootballPlayerCharacter::OnShootPressed);
+            EnhancedInput->BindAction(ShootAction, ETriggerEvent::Started, this,
+                                      &AFootballPlayerCharacter::OnShootPressed);
         }
         if (TackleAction)
         {
-            EnhancedInput->BindAction(TackleAction, ETriggerEvent::Started, this, &AFootballPlayerCharacter::OnTacklePressed);
+            EnhancedInput->BindAction(TackleAction, ETriggerEvent::Started, this,
+                                      &AFootballPlayerCharacter::OnTacklePressed);
         }
         if (SkillMoveAction)
         {
-            EnhancedInput->BindAction(SkillMoveAction, ETriggerEvent::Started, this, &AFootballPlayerCharacter::OnSkillMovePressed);
+            EnhancedInput->BindAction(SkillMoveAction, ETriggerEvent::Started, this,
+                                      &AFootballPlayerCharacter::OnSkillMovePressed);
         }
     }
 }
@@ -148,7 +160,8 @@ void AFootballPlayerCharacter::UnPossessed()
 
     if (APlayerController* PC = Cast<APlayerController>(GetController()))
     {
-        if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PC->GetLocalPlayer()))
+        if (UEnhancedInputLocalPlayerSubsystem* Subsystem =
+                ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PC->GetLocalPlayer()))
         {
             if (FootballInputMapping)
             {
@@ -260,7 +273,8 @@ void AFootballPlayerCharacter::PassBall(AActor* TargetPlayer, float Power, FGame
     OnActionExecuted.Broadcast(PassType, true, TargetPlayer);
 }
 
-void AFootballPlayerCharacter::ShootAtGoal(const FVector& TargetLocation, float Power, float Placement, FGameplayTag ShotType)
+void AFootballPlayerCharacter::ShootAtGoal(const FVector& TargetLocation, float Power, float Placement,
+                                           FGameplayTag ShotType)
 {
     if (!CurrentBall)
     {
@@ -340,7 +354,8 @@ void AFootballPlayerCharacter::ChestControl()
     }
 
     // Trap ball with chest - kill velocity and gain possession
-    CurrentBall->ApplyImpulseAtLocation(-CurrentBall->GetVelocity() * CurrentBall->GetPhysicsParams().Mass, GetActorLocation());
+    CurrentBall->ApplyImpulseAtLocation(-CurrentBall->GetVelocity() * CurrentBall->GetPhysicsParams().Mass,
+                                        GetActorLocation());
     CurrentBall->SetPossessingPlayer(this);
     CurrentBall = CurrentBall;
     CurrentActionState = FFootballTags::Player_Dribbling;
@@ -354,7 +369,8 @@ void AFootballPlayerCharacter::TrapBall()
     }
 
     // Soft touch to control ball
-    CurrentBall->ApplyImpulseAtLocation(-CurrentBall->GetVelocity() * CurrentBall->GetPhysicsParams().Mass * 0.5f, GetActorLocation());
+    CurrentBall->ApplyImpulseAtLocation(-CurrentBall->GetVelocity() * CurrentBall->GetPhysicsParams().Mass * 0.5f,
+                                        GetActorLocation());
     CurrentBall->SetPossessingPlayer(this);
     CurrentBall = CurrentBall;
     CurrentActionState = FFootballTags::Player_Dribbling;
@@ -399,7 +415,8 @@ void AFootballPlayerCharacter::Tackle(FGameplayTag TackleType)
             if (Dist < 200.0f)
             {
                 // Successful tackle
-                CurrentBall->ApplyImpulseAtLocation(GetActorForwardVector() * 5000.0f, CurrentBall->GetComponentLocation());
+                CurrentBall->ApplyImpulseAtLocation(GetActorForwardVector() * 5000.0f,
+                                                    CurrentBall->GetComponentLocation());
                 ReleasePossession();
             }
         }
@@ -456,11 +473,14 @@ void AFootballPlayerCharacter::GoalkeeperDive(FVector Direction)
         GetCapsuleComponent()->SetCapsuleRadius(80.0f);
 
         FTimerHandle TimerHandle;
-        GetWorldTimerManager().SetTimer(TimerHandle, [this]()
-        {
-            GetCapsuleComponent()->SetCapsuleHalfHeight(90.0f);
-            GetCapsuleComponent()->SetCapsuleRadius(35.0f);
-        }, 1.0f, false);
+        GetWorldTimerManager().SetTimer(
+            TimerHandle,
+            [this]()
+            {
+                GetCapsuleComponent()->SetCapsuleHalfHeight(90.0f);
+                GetCapsuleComponent()->SetCapsuleRadius(35.0f);
+            },
+            1.0f, false);
     }
 }
 
@@ -486,7 +506,8 @@ void AFootballPlayerCharacter::GoalkeeperPunch()
     CurrentActionState = FFootballTags::Action_Goalkeeper_Punch;
     ActionCooldown = 0.5f;
     // Punch logic - deflect ball
-    CurrentBall->ApplyImpulseAtLocation(GetActorForwardVector() * 8000.0f + FVector::UpVector * 2000.0f, CurrentBall->GetComponentLocation());
+    CurrentBall->ApplyImpulseAtLocation(GetActorForwardVector() * 8000.0f + FVector::UpVector * 2000.0f,
+                                        CurrentBall->GetComponentLocation());
     ReleasePossession();
 }
 
@@ -526,29 +547,29 @@ void AFootballPlayerCharacter::SetMovementMode(EFootballMovementMode::Type Mode)
 
     switch (Mode)
     {
-        case EFootballMovementMode::Walking:
-            GetCharacterMovement()->MaxWalkSpeed = 200.0f;
-            break;
-        case EFootballMovementMode::Jogging:
-            GetCharacterMovement()->MaxWalkSpeed = 400.0f;
-            break;
-        case EFootballMovementMode::Sprinting:
-            GetCharacterMovement()->MaxWalkSpeed = 700.0f * (Attributes.SprintSpeed / 100.0f);
-            break;
-        case EFootballMovementMode::Dribbling:
-            GetCharacterMovement()->MaxWalkSpeed = 300.0f * (Attributes.Dribbling / 100.0f);
-            GetCharacterMovement()->BrakingDecelerationWalking = 3000.0f;
-            break;
-        case EFootballMovementMode::Shielding:
-            GetCharacterMovement()->MaxWalkSpeed = 150.0f;
-            GetCharacterMovement()->BrakingDecelerationWalking = 5000.0f;
-            break;
-        case EFootballMovementMode::Jockeying:
-            GetCharacterMovement()->MaxWalkSpeed = 300.0f;
-            GetCharacterMovement()->RotationRate = FRotator(0.0f, 360.0f, 0.0f);
-            break;
-        default:
-            break;
+    case EFootballMovementMode::Walking:
+        GetCharacterMovement()->MaxWalkSpeed = 200.0f;
+        break;
+    case EFootballMovementMode::Jogging:
+        GetCharacterMovement()->MaxWalkSpeed = 400.0f;
+        break;
+    case EFootballMovementMode::Sprinting:
+        GetCharacterMovement()->MaxWalkSpeed = 700.0f * (Attributes.SprintSpeed / 100.0f);
+        break;
+    case EFootballMovementMode::Dribbling:
+        GetCharacterMovement()->MaxWalkSpeed = 300.0f * (Attributes.Dribbling / 100.0f);
+        GetCharacterMovement()->BrakingDecelerationWalking = 3000.0f;
+        break;
+    case EFootballMovementMode::Shielding:
+        GetCharacterMovement()->MaxWalkSpeed = 150.0f;
+        GetCharacterMovement()->BrakingDecelerationWalking = 5000.0f;
+        break;
+    case EFootballMovementMode::Jockeying:
+        GetCharacterMovement()->MaxWalkSpeed = 300.0f;
+        GetCharacterMovement()->RotationRate = FRotator(0.0f, 360.0f, 0.0f);
+        break;
+    default:
+        break;
     }
 }
 
@@ -706,7 +727,9 @@ float AFootballPlayerCharacter::GetTacticalInstruction(FGameplayTag InstructionT
 }
 
 // Network
-void AFootballPlayerCharacter::Server_SetDeterministicState(const FFootballFixedVector& Position, const FFootballFixedVector& Velocity, const FFootballFixedRotator& Rotation, int32 FrameNumber)
+void AFootballPlayerCharacter::Server_SetDeterministicState(const FFootballFixedVector& Position,
+                                                            const FFootballFixedVector& Velocity,
+                                                            const FFootballFixedRotator& Rotation, int32 FrameNumber)
 {
     SetActorLocation(Position.ToVector());
     GetCharacterMovement()->Velocity = Velocity.ToVector();
@@ -714,7 +737,9 @@ void AFootballPlayerCharacter::Server_SetDeterministicState(const FFootballFixed
     SimulationFrame = FrameNumber;
 }
 
-void AFootballPlayerCharacter::GetDeterministicState(FFootballFixedVector& OutPosition, FFootballFixedVector& OutVelocity, FFootballFixedRotator& OutRotation, int32& OutFrameNumber) const
+void AFootballPlayerCharacter::GetDeterministicState(FFootballFixedVector& OutPosition,
+                                                     FFootballFixedVector& OutVelocity,
+                                                     FFootballFixedRotator& OutRotation, int32& OutFrameNumber) const
 {
     OutPosition = FFootballFixedVector::FromVector(GetActorLocation());
     OutVelocity = FFootballFixedVector::FromVector(GetCharacterMovement()->Velocity);
@@ -785,13 +810,15 @@ void AFootballPlayerCharacter::CheckBallPossession()
     {
         // Check for nearby balls
         TArray<AActor*> FoundActors;
-        UGameplayStatics::GetAllActorsOfClass(GetWorld(), AFootballBallComponent::StaticClass(), FoundActors);
+        UGameplayStatics::GetAllActorsOfClass(GetWorld(), AFootballBallActor::StaticClass(), FoundActors);
 
         for (AActor* Actor : FoundActors)
         {
-            if (UFootballBallComponent* Ball = Cast<UFootballBallComponent>(Actor->GetComponentByClass(UFootballBallComponent::StaticClass())))
+            if (UFootballBallComponent* Ball =
+                    Cast<UFootballBallComponent>(Actor->GetComponentByClass(UFootballBallComponent::StaticClass())))
             {
-                if (Ball->GetBallState() == EFootballBallState::Free || Ball->GetBallState() == EFootballBallState::Rolling)
+                if (Ball->GetBallState() == EFootballBallState::Free ||
+                    Ball->GetBallState() == EFootballBallState::Rolling)
                 {
                     float Distance = FVector::Dist(GetActorLocation(), Ball->GetComponentLocation());
                     if (Distance <= PossessionRange)
@@ -821,7 +848,7 @@ void AFootballPlayerCharacter::UpdateProceduralIK(float DeltaTime)
         {
             if (IKBlendWeights[Pair.Key] > 0.01f)
             {
-                ControlRigComponent->SetControlOffset(Pair.Key, Pair.Value * IKBlendWeights[Pair.Key]);
+                ControlRigComponent->SetControlOffset(Pair.Key, FTransform(Pair.Value * IKBlendWeights[Pair.Key]));
             }
         }
     }
@@ -835,7 +862,7 @@ void AFootballPlayerCharacter::UpdateLookAt(float DeltaTime)
         if (ControlRigComponent)
         {
             FVector LookDirection = (LookAtTarget->GetActorLocation() - GetActorLocation()).GetSafeNormal();
-            ControlRigComponent->SetControlOffset(FName("Head_LookAt"), LookDirection * LookAtBlendWeight);
+            ControlRigComponent->SetControlOffset(FName("Head_LookAt"), FTransform(LookDirection * LookAtBlendWeight));
         }
     }
     else

@@ -26,7 +26,8 @@ public:
     UFootballTacticalComponent();
 
     virtual void BeginPlay() override;
-    virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+    virtual void TickComponent(float DeltaTime, ELevelTick TickType,
+                               FActorComponentTickFunction* ThisTickFunction) override;
 
     // Initialization
     UFUNCTION(BlueprintCallable, Category = "Football|Tactical")
@@ -128,17 +129,19 @@ protected:
     TMap<TObjectPtr<AFootballPlayerCharacter>, FVector> PlayerTargetPositions;
 
     // Set piece routines
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Football|Tactical|SetPiece", meta = (AllowPrivateAccess = "true"))
     TMap<EFootballMatchPhase::Type, TArray<FVector>> SetPiecePositions;
 
     // Tactical zones
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Football|Tactical|Zones", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Football|Tactical|Zones",
+              meta = (AllowPrivateAccess = "true"))
     TArray<FBox> DefensiveZones;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Football|Tactical|Zones", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Football|Tactical|Zones",
+              meta = (AllowPrivateAccess = "true"))
     TArray<FBox> AttackingZones;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Football|Tactical|Zones", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Football|Tactical|Zones",
+              meta = (AllowPrivateAccess = "true"))
     TArray<FBox> PressingZones;
 
 private:
@@ -148,4 +151,5 @@ private:
     void ApplyCounterAttack(float DeltaTime);
     FVector CalculateIdealPosition(AFootballPlayerCharacter* Player) const;
     float GetPlayerRoleWeight(EFootballPlayerRole::Type Role, bool bAttacking) const;
+    float CalculatePassScore(AFootballPlayerCharacter* Passer, AFootballPlayerCharacter* Receiver) const;
 };

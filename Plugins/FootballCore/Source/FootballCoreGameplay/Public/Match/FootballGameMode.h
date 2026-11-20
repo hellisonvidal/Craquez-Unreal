@@ -13,8 +13,10 @@ class UFootballBallComponent;
 class AFootballPlayerCharacter;
 class UFootballMatchState;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnMatchEvent, FGameplayTag, EventTag, AActor*, Instigator, AActor*, Target);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnGoalScored, EFootballTeamSide::Type, ScoringTeam, AFootballPlayerCharacter*, Scorer);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnMatchEvent, FGameplayTag, EventTag, AActor*, Instigator, AActor*,
+                                               Target);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnGoalScored, EFootballTeamSide::Type, ScoringTeam,
+                                             AFootballPlayerCharacter*, Scorer);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMatchPhaseChanged, EFootballMatchPhase::Type, NewPhase);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMatchTimeChanged, float, TimeRemaining);
 
@@ -116,7 +118,8 @@ public:
     void CheckOffside(AFootballPlayerCharacter* Attacker);
 
     UFUNCTION(BlueprintCallable, Category = "Football|Rules")
-    void RegisterFoul(EFootballTeamSide::Type OffendingTeam, AFootballPlayerCharacter* Offender, FVector Location, FGameplayTag FoulType);
+    void RegisterFoul(EFootballTeamSide::Type OffendingTeam, AFootballPlayerCharacter* Offender, FVector Location,
+                      FGameplayTag FoulType);
 
     UFUNCTION(BlueprintCallable, Category = "Football|Rules")
     void AwardFreeKick(EFootballTeamSide::Type Team, FVector Location, FGameplayTag FoulType);
@@ -135,7 +138,8 @@ public:
 
     // Substitutions
     UFUNCTION(BlueprintCallable, Category = "Football|Team")
-    bool ProcessSubstitution(EFootballTeamSide::Type Team, AFootballPlayerCharacter* PlayerOut, AFootballPlayerCharacter* PlayerIn);
+    bool ProcessSubstitution(EFootballTeamSide::Type Team, AFootballPlayerCharacter* PlayerOut,
+                             AFootballPlayerCharacter* PlayerIn);
 
     // Game Mode Type
     UFUNCTION(BlueprintCallable, Category = "Football|Match")
@@ -149,7 +153,8 @@ public:
     void SpawnPlayers();
 
     UFUNCTION(BlueprintCallable, Category = "Football|Players")
-    AFootballPlayerCharacter* SpawnPlayer(EFootballTeamSide::Type Team, EFootballPlayerRole::Type Role, FVector Location, FRotator Rotation);
+    AFootballPlayerCharacter* SpawnPlayer(EFootballTeamSide::Type Team, EFootballPlayerRole::Type InRole,
+                                          FVector Location, FRotator Rotation);
 
     // Events
     UPROPERTY(BlueprintAssignable, Category = "Football|Events")
@@ -167,7 +172,7 @@ public:
 protected:
     // Configuration
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Football|Match", meta = (AllowPrivateAccess = "true"))
-    EFootballGameMode::Type GameModeType = EFootballGameMode::TrainingMatch_11v11;
+    TEnumAsByte<EFootballGameMode::Type> GameModeType = EFootballGameMode::TrainingMatch_11v11;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Football|Match", meta = (AllowPrivateAccess = "true"))
     float MatchDuration = 90.0f; // minutes
@@ -209,7 +214,7 @@ protected:
 
     // Match State
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Match", meta = (AllowPrivateAccess = "true"))
-    EFootballMatchPhase::Type CurrentPhase = EFootballMatchPhase::KickOff;
+    TEnumAsByte<EFootballMatchPhase::Type> CurrentPhase = EFootballMatchPhase::KickOff;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Match", meta = (AllowPrivateAccess = "true"))
     float MatchTimeElapsed = 0.0f;
@@ -233,7 +238,7 @@ protected:
 
     // Set Piece State
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Rules", meta = (AllowPrivateAccess = "true"))
-    EFootballTeamSide::Type LastTouchTeam = EFootballTeamSide::Neutral;
+    TEnumAsByte<EFootballTeamSide::Type> LastTouchTeam = EFootballTeamSide::Neutral;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Rules", meta = (AllowPrivateAccess = "true"))
     AFootballPlayerCharacter* LastTouchPlayer = nullptr;
@@ -259,4 +264,5 @@ private:
     FVector GetCornerPosition(EFootballTeamSide::Type Team) const;
     void InitializeTeams();
     void SetupDefaultTactics();
+    void SpawnTeamPlayers(AFootballTeam* Team, EFootballTeamSide::Type Side);
 };

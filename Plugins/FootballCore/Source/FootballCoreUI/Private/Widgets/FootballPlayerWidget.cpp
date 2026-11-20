@@ -115,7 +115,7 @@ void UFootballPlayerWidget::UpdateFatigueDisplay(bool bFatigued)
 
         if (bFatigued && FatiguePulseAnimation)
         {
-            PlayAnimation(FatiguePulseAnimation, 0.0f, 0, EUMGSequencePlayMode::Loop);
+            PlayAnimation(FatiguePulseAnimation, 0.0f, 0, EUMGSequencePlayMode::PingPong);
         }
         else
         {
@@ -143,13 +143,16 @@ void UFootballPlayerWidget::CreateActionFeedback(FGameplayTag ActionTag, bool bS
 
         // Animate and remove after delay
         FTimerHandle TimerHandle;
-        GetWorld()->GetTimerManager().SetTimer(TimerHandle, [FeedbackWidget]()
-        {
-            if (FeedbackWidget)
+        GetWorld()->GetTimerManager().SetTimer(
+            TimerHandle,
+            [FeedbackWidget]()
             {
-                FeedbackWidget->RemoveFromParent();
-            }
-        }, 2.0f, false);
+                if (FeedbackWidget)
+                {
+                    FeedbackWidget->RemoveFromParent();
+                }
+            },
+            2.0f, false);
     }
 }
 

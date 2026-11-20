@@ -10,6 +10,7 @@
 #include "Kismet/KismetMathLibrary.h"
 #include "DrawDebugHelpers.h"
 #include "GameFramework/Character.h"
+#include "PhysicalMaterials/PhysicalMaterial.h"
 #include "Sound/SoundCue.h"
 
 UFootballBallComponent::UFootballBallComponent()
@@ -31,15 +32,16 @@ void UFootballBallComponent::BeginPlay()
         if (!BallMeshComponent)
         {
             // Create a sphere component for physics
-            BallMeshComponent = NewObject<USphereComponent>(Owner, TEXT("BallSphere"));
-            BallMeshComponent->RegisterComponent();
-            BallMeshComponent->AttachToComponent(this, FAttachmentTransformRules::KeepRelativeTransform);
-            BallMeshComponent->SetSphereRadius(PhysicsParams.Radius * 100.0f); // Convert to cm
-            BallMeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-            BallMeshComponent->SetCollisionObjectType(ECC_WorldDynamic);
-            BallMeshComponent->SetCollisionResponseToAllChannels(ECR_Block);
-            BallMeshComponent->SetSimulatePhysics(false); // We simulate manually for determinism
-            BallMeshComponent->SetMassOverrideInKg(NAME_None, PhysicsParams.Mass);
+            USphereComponent* SphereComp = NewObject<USphereComponent>(Owner, TEXT("BallSphere"));
+            SphereComp->RegisterComponent();
+            SphereComp->AttachToComponent(this, FAttachmentTransformRules::KeepRelativeTransform);
+            SphereComp->SetSphereRadius(PhysicsParams.Radius * 100.0f); // Convert to cm
+            SphereComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+            SphereComp->SetCollisionObjectType(ECC_WorldDynamic);
+            SphereComp->SetCollisionResponseToAllChannels(ECR_Block);
+            SphereComp->SetSimulatePhysics(false); // We simulate manually for determinism
+            SphereComp->SetMassOverrideInKg(NAME_None, PhysicsParams.Mass);
+            BallMeshComponent = SphereComp;
         }
     }
 
@@ -61,7 +63,8 @@ void UFootballBallComponent::BeginPlay()
     TransitionToState(EFootballBallState::Free);
 }
 
-void UFootballBallComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+void UFootballBallComponent::TickComponent(float DeltaTime, ELevelTick TickType,
+                                           FActorComponentTickFunction* ThisTickFunction)
 {
     Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
@@ -202,7 +205,9 @@ void UFootballBallComponent::SetPossessingPlayer(AActor* Player)
     }
 }
 
-void UFootballBallComponent::SetDeterministicState(const FFootballFixedVector& Position, const FFootballFixedVector& Velocity, const FFootballFixedVector& AngularVelocity, int32 FrameNumber)
+void UFootballBallComponent::SetDeterministicState(const FFootballFixedVector& Position,
+                                                   const FFootballFixedVector& Velocity,
+                                                   const FFootballFixedVector& AngularVelocity, int32 FrameNumber)
 {
     SetWorldLocation(Position.ToVector());
     CurrentVelocity = Velocity.ToVector();
@@ -210,7 +215,9 @@ void UFootballBallComponent::SetDeterministicState(const FFootballFixedVector& P
     SimulationFrame = FrameNumber;
 }
 
-void UFootballBallComponent::GetDeterministicState(FFootballFixedVector& OutPosition, FFootballFixedVector& OutVelocity, FFootballFixedVector& OutAngularVelocity, int32& OutFrameNumber) const
+void UFootballBallComponent::GetDeterministicState(FFootballFixedVector& OutPosition, FFootballFixedVector& OutVelocity,
+                                                   FFootballFixedVector& OutAngularVelocity,
+                                                   int32& OutFrameNumber) const
 {
     OutPosition = FFootballFixedVector::FromVector(GetComponentLocation());
     OutVelocity = FFootballFixedVector::FromVector(CurrentVelocity);
@@ -246,11 +253,11 @@ void UFootballBallComponent::SimulatePhysics(float DeltaTime)
     // Integrate rotation from angular velocity
     FQuat CurrentRotation = GetComponentQuat();
     FVector AngularDelta = CurrentAngularVelocity * DeltaTime;
-    FQuat RotationDelta = FQuat(AngularDelta);
+    FQuat RotationDelta = FQuat::MakeFromRotationVector(AngularDelta);
     SetWorldRotation(CurrentRotation * RotationDelta);
 
     // Update mesh component if separate
-    if (BallMeshComponent && BallMeshComponent != this)
+    if (BallMeshComponent && static_cast<const USceneComponent*>(BallMeshComponent.Get()) != this)
     {
         BallMeshComponent->SetWorldLocationAndRotation(NewLocation, GetComponentQuat());
     }
@@ -292,7 +299,8 @@ void UFootballBallComponent::ApplyMagnusForce(float DeltaTime)
     float Speed = CurrentVelocity.Size();
 
     // Magnus coefficient
-    float S = 0.5f * PhysicsParams.AirDensity * PhysicsParams.LiftCoefficient * PI * FMath::Square(PhysicsParams.Radius) * PhysicsParams.Radius / PhysicsParams.Mass;
+    float S = 0.5f * PhysicsParams.AirDensity * PhysicsParams.LiftCoefficient * PI *
+              FMath::Square(PhysicsParams.Radius) * PhysicsParams.Radius / PhysicsParams.Mass;
 
     // Magnus force is perpendicular to both spin axis and velocity
     FVector MagnusDir = FVector::CrossProduct(SpinAxis, CurrentVelocity.GetSafeNormal());
@@ -323,7 +331,8 @@ void UFootballBallComponent::ApplyGroundInteraction(float DeltaTime)
         }
 
         // Calculate relative velocity at contact point
-        FVector ContactVelocity = CurrentVelocity + FVector::CrossProduct(CurrentAngularVelocity, -GroundNormal * PhysicsParams.Radius);
+        FVector ContactVelocity =
+            CurrentVelocity + FVector::CrossProduct(CurrentAngularVelocity, -GroundNormal * PhysicsParams.Radius);
         float NormalVelocity = FVector::DotProduct(ContactVelocity, GroundNormal);
 
         // Only apply collision response if moving toward ground
@@ -342,17 +351,21 @@ void UFootballBallComponent::ApplyGroundInteraction(float DeltaTime)
                 FVector FrictionDir = -TangentialVelocity.GetSafeNormal();
 
                 // Determine if rolling or sliding
-                FVector RollingVelocity = FVector::CrossProduct(CurrentAngularVelocity, -GroundNormal * PhysicsParams.Radius);
+                FVector RollingVelocity =
+                    FVector::CrossProduct(CurrentAngularVelocity, -GroundNormal * PhysicsParams.Radius);
                 float SlipSpeed = (TangentialVelocity - RollingVelocity).Size();
 
-                float FrictionCoeff = (SlipSpeed < 10.0f) ? PhysicsParams.RollingFriction : PhysicsParams.SlidingFriction;
+                float FrictionCoeff =
+                    (SlipSpeed < 10.0f) ? PhysicsParams.RollingFriction : PhysicsParams.SlidingFriction;
                 float FrictionForce = FrictionCoeff * FMath::Abs(NormalVelocity) * PhysicsParams.Mass;
-                FVector FrictionImpulse = FrictionDir * FMath::Min(FrictionForce * DeltaTime, TangentialSpeed) / PhysicsParams.Mass;
+                FVector FrictionImpulse =
+                    FrictionDir * FMath::Min(FrictionForce * DeltaTime, TangentialSpeed) / PhysicsParams.Mass;
 
                 CurrentVelocity += FrictionImpulse;
 
                 // Torque from friction
-                FVector Torque = FVector::CrossProduct(-GroundNormal * PhysicsParams.Radius, FrictionImpulse * PhysicsParams.Mass);
+                FVector Torque =
+                    FVector::CrossProduct(-GroundNormal * PhysicsParams.Radius, FrictionImpulse * PhysicsParams.Mass);
                 float MomentOfInertia = 0.4f * PhysicsParams.Mass * FMath::Square(PhysicsParams.Radius);
                 CurrentAngularVelocity += Torque / MomentOfInertia;
             }
@@ -419,15 +432,9 @@ void UFootballBallComponent::CheckCollisions(float DeltaTime)
     QueryParams.bReturnFaceIndex = true;
 
     FHitResult HitResult;
-    bool bHit = GetWorld()->SweepSingleByChannel(
-        HitResult,
-        Start,
-        End,
-        FQuat::Identity,
-        ECC_WorldDynamic,
-        FCollisionShape::MakeSphere(PhysicsParams.Radius * 100.0f),
-        QueryParams
-    );
+    bool bHit =
+        GetWorld()->SweepSingleByChannel(HitResult, Start, End, FQuat::Identity, ECC_WorldDynamic,
+                                         FCollisionShape::MakeSphere(PhysicsParams.Radius * 100.0f), QueryParams);
 
     if (bHit)
     {
@@ -473,7 +480,8 @@ void UFootballBallComponent::HandleCollision(const FHitResult& HitResult)
         FVector TangentialVel = RelativeVelocity - ImpactNormal * FVector::DotProduct(RelativeVelocity, ImpactNormal);
         if (TangentialVel.Size() > 50.0f)
         {
-            FVector Torque = FVector::CrossProduct(ImpactNormal * PhysicsParams.Radius, TangentialVel * PhysicsParams.Mass * 0.1f);
+            FVector Torque =
+                FVector::CrossProduct(ImpactNormal * PhysicsParams.Radius, TangentialVel * PhysicsParams.Mass * 0.1f);
             float MomentOfInertia = 0.4f * PhysicsParams.Mass * FMath::Square(PhysicsParams.Radius);
             CurrentAngularVelocity += Torque / MomentOfInertia;
         }
@@ -520,37 +528,30 @@ bool UFootballBallComponent::CanTransitionTo(EFootballBallState::Type NewState) 
     // Define valid state transitions
     switch (CurrentBallState)
     {
-        case EFootballBallState::Free:
-            return NewState == EFootballBallState::Possessed ||
-                   NewState == EFootballBallState::Flying ||
-                   NewState == EFootballBallState::Rolling ||
-                   NewState == EFootballBallState::OutOfPlay;
+    case EFootballBallState::Free:
+        return NewState == EFootballBallState::Possessed || NewState == EFootballBallState::Flying ||
+               NewState == EFootballBallState::Rolling || NewState == EFootballBallState::OutOfPlay;
 
-        case EFootballBallState::Possessed:
-            return NewState == EFootballBallState::Free ||
-                   NewState == EFootballBallState::Flying ||
-                   NewState == EFootballBallState::OutOfPlay;
+    case EFootballBallState::Possessed:
+        return NewState == EFootballBallState::Free || NewState == EFootballBallState::Flying ||
+               NewState == EFootballBallState::OutOfPlay;
 
-        case EFootballBallState::Flying:
-            return NewState == EFootballBallState::Rolling ||
-                   NewState == EFootballBallState::Free ||
-                   NewState == EFootballBallState::Possessed ||
-                   NewState == EFootballBallState::Goal ||
-                   NewState == EFootballBallState::OutOfPlay;
+    case EFootballBallState::Flying:
+        return NewState == EFootballBallState::Rolling || NewState == EFootballBallState::Free ||
+               NewState == EFootballBallState::Possessed || NewState == EFootballBallState::Goal ||
+               NewState == EFootballBallState::OutOfPlay;
 
-        case EFootballBallState::Rolling:
-            return NewState == EFootballBallState::Free ||
-                   NewState == EFootballBallState::Possessed ||
-                   NewState == EFootballBallState::Flying ||
-                   NewState == EFootballBallState::Goal ||
-                   NewState == EFootballBallState::OutOfPlay;
+    case EFootballBallState::Rolling:
+        return NewState == EFootballBallState::Free || NewState == EFootballBallState::Possessed ||
+               NewState == EFootballBallState::Flying || NewState == EFootballBallState::Goal ||
+               NewState == EFootballBallState::OutOfPlay;
 
-        case EFootballBallState::Goal:
-        case EFootballBallState::OutOfPlay:
-            return NewState == EFootballBallState::Free;
+    case EFootballBallState::Goal:
+    case EFootballBallState::OutOfPlay:
+        return NewState == EFootballBallState::Free;
 
-        default:
-            return true;
+    default:
+        return true;
     }
 }
 
@@ -563,13 +564,7 @@ bool UFootballBallComponent::CheckGroundContact(FHitResult& OutHitResult) const
     QueryParams.AddIgnoredActor(GetOwner());
     QueryParams.bReturnPhysicalMaterial = true;
 
-    return GetWorld()->LineTraceSingleByChannel(
-        OutHitResult,
-        Start,
-        End,
-        ECC_WorldStatic,
-        QueryParams
-    );
+    return GetWorld()->LineTraceSingleByChannel(OutHitResult, Start, End, ECC_WorldStatic, QueryParams);
 }
 
 FVector UFootballBallComponent::CalculateGroundVelocity(const FHitResult& HitResult) const
@@ -593,20 +588,24 @@ void UFootballBallComponent::UpdateVisuals(float DeltaTime)
 void UFootballBallComponent::PlayImpactSound(const FHitResult& HitResult)
 {
     UPhysicalMaterial* PhysMat = HitResult.PhysMaterial.Get();
-    USoundBase* SoundToPlay = nullptr;
+    USoundBase* SoundToPlay = ImpactSound_Ground;
 
-    if (PhysMat)
+    if (Cast<ACharacter>(HitResult.GetActor()))
     {
-        FName SurfaceType = PhysMat->SurfaceType;
-        if (SurfaceType == UPhysicalMaterial::GetDefault()->SurfaceType)
+        SoundToPlay = ImpactSound_Player ? ImpactSound_Player : ImpactSound_Ground;
+    }
+    else if (PhysMat)
+    {
+        EPhysicalSurface SurfaceType = PhysMat->SurfaceType;
+        if (SurfaceType == SurfaceType_Default)
         {
             SoundToPlay = ImpactSound_Ground;
         }
-        else if (SurfaceType == FName("Player"))
+        else if (SurfaceType == SurfaceType1)
         {
             SoundToPlay = ImpactSound_Player;
         }
-        else if (SurfaceType == FName("Metal") || SurfaceType == FName("Wood"))
+        else if (SurfaceType == SurfaceType2)
         {
             SoundToPlay = ImpactSound_Post;
         }
@@ -614,10 +613,6 @@ void UFootballBallComponent::PlayImpactSound(const FHitResult& HitResult)
         {
             SoundToPlay = ImpactSound_Ground;
         }
-    }
-    else
-    {
-        SoundToPlay = ImpactSound_Ground;
     }
 
     if (SoundToPlay)
@@ -647,7 +642,8 @@ void UFootballBallComponent::UpdateNiagaraParameters()
 
         if (bShowTrail && TrailIntensityCurve)
         {
-            float Intensity = TrailIntensityCurve->GetFloatValue(FMath::Clamp(CurrentVelocity.Size() / 3000.0f, 0.0f, 1.0f));
+            float Intensity =
+                TrailIntensityCurve->GetFloatValue(FMath::Clamp(CurrentVelocity.Size() / 3000.0f, 0.0f, 1.0f));
             TrailEffect->SetVariableFloat("TrailIntensity", Intensity);
         }
     }

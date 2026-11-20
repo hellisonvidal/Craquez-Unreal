@@ -56,7 +56,8 @@ public:
     void ShowCard(EFootballTeamSide::Type Team, AFootballPlayerCharacter* Player, bool bYellow);
 
     UFUNCTION(BlueprintCallable, Category = "Football|UI")
-    void ShowSubstitution(EFootballTeamSide::Type Team, AFootballPlayerCharacter* PlayerOut, AFootballPlayerCharacter* PlayerIn);
+    void ShowSubstitution(EFootballTeamSide::Type Team, AFootballPlayerCharacter* PlayerOut,
+                          AFootballPlayerCharacter* PlayerIn);
 
     // Team Info
     UFUNCTION(BlueprintCallable, Category = "Football|UI")
@@ -116,13 +117,13 @@ protected:
     UPROPERTY(meta = (BindWidget))
     TObjectPtr<UVerticalBox> EventsContainer = nullptr;
 
-    UPROPERTY(meta = (BindWidget))
+    UPROPERTY(Transient, meta = (BindWidgetAnimOptional))
     TObjectPtr<UWidgetAnimation> GoalAnimation = nullptr;
 
-    UPROPERTY(meta = (BindWidget))
+    UPROPERTY(Transient, meta = (BindWidgetAnimOptional))
     TObjectPtr<UWidgetAnimation> CardAnimation = nullptr;
 
-    UPROPERTY(meta = (BindWidget))
+    UPROPERTY(Transient, meta = (BindWidgetAnimOptional))
     TObjectPtr<UWidgetAnimation> SubstitutionAnimation = nullptr;
 
     // Event Widget Class
@@ -149,8 +150,11 @@ private:
     void UpdateScoreDisplay();
     void UpdateTimeDisplay();
     void UpdatePossessionDisplay();
+    void RefreshTeamNames();
+    void RefreshTeamCrests();
     void CreateGoalEvent(EFootballTeamSide::Type ScoringTeam, AFootballPlayerCharacter* Scorer);
     void CreateCardEvent(EFootballTeamSide::Type Team, AFootballPlayerCharacter* Player, bool bYellow);
-    void CreateSubstitutionEvent(EFootballTeamSide::Type Team, AFootballPlayerCharacter* PlayerOut, AFootballPlayerCharacter* PlayerIn);
+    void CreateSubstitutionEvent(EFootballTeamSide::Type Team, AFootballPlayerCharacter* PlayerOut,
+                                 AFootballPlayerCharacter* PlayerIn);
     FString FormatTime(float Seconds) const;
 };

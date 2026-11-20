@@ -1,0 +1,62 @@
+{
+  "FileVersion": 3,
+  "EngineAssociation": "5.8",
+  "Category": "",
+  "Description": "Craquez - Realistic Football Game",
+  "Modules": [
+    {
+      "Name": "Craquez",
+      "Type": "Runtime",
+      "LoadingPhase": "Default",
+      "AdditionalDependencies": [
+        "Engine",
+        "FootballCore",
+        "FootballCoreGameplay",
+        "FootballCoreAI",
+        "FootballCoreNetworking",
+        "FootballCoreUI"
+      ]
+    }
+  ],
+  "Plugins": [
+    {
+      "Name": "FootballCore",
+      "Enabled": true
+    },
+    {
+      "Name": "EnhancedInput",
+      "Enabled": true
+    },
+    {
+      "Name": "Niagara",
+      "Enabled": true
+    },
+    {
+      "Name": "ControlRig",
+      "Enabled": true
+    },
+    {
+      "Name": "StateTree",
+      "Enabled": true
+    },
+    {
+      "Name": "GameplayStateTree",
+      "Enabled": true
+    },
+    {
+      "Name": "ChaosCloth",
+      "Enabled": true
+    },
+    {
+      "Name": "PCG",
+      "Enabled": true
+    }
+  ],
+  "TargetPlatforms": [
+    "Windows",
+    "Mac",
+    "Linux",
+    "Android",
+    "IOS"
+  ]
+}
