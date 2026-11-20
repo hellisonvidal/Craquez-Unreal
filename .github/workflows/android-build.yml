@@ -31,7 +31,7 @@ env:
   UE_VERSION: '5.4'
   # Android SDK/NDK versions
   ANDROID_SDK_VERSION: '33'
-  ANDROID_NDK_VERSION: 'r25c'
+  ANDROID_NDK_VERSION: '25.2.9519653'
   # Java version
   JAVA_VERSION: '17'
   # Gradle version
@@ -63,19 +63,13 @@ jobs:
           # Don't use gradle cache here - we'll cache manually
           # cache: 'gradle'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          api-level: ${{ env.ANDROID_SDK_VERSION }}
-          ndk-version: ${{ env.ANDROID_NDK_VERSION }}
-          # Explicitly specify packages to install - avoid deprecated 'tools' package
-          platforms: android-${{ env.ANDROID_SDK_VERSION }}
-          # Don't install deprecated 'tools' package - use cmdline-tools instead
-
-      - name: Accept Android Licenses
+      - name: Setup Android SDK (Manual)
+        name: Setup Android SDK
         run: |
-          yes | sdkmanager --licenses || true
-          sdkmanager --list | grep -E "(platforms;android-${{ env.ANDROID_SDK_VERSION }}|build-tools|ndk;${{ env.ANDROID_NDK_VERSION }})" || true
+          # Install required Android SDK packages manually
+          # Avoid deprecated 'tools' package
+          sdkmanager --licenses <<< "y" || true
+          sdkmanager "platforms;android-${{ env.ANDROID_SDK_VERSION }}" "build-tools;33.0.0" "ndk;${{ env.ANDROID_NDK_VERSION }}" "cmake;3.22.1" || true
 
       - name: Verify Android Project Structure
         run: |
@@ -124,12 +118,8 @@ jobs:
           # No gradle cache - using wrapper directly
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          api-level: ${{ env.ANDROID_SDK_VERSION }}
-          ndk-version: ${{ env.ANDROID_NDK_VERSION }}
-          # Explicitly specify platforms to install - avoid deprecated 'tools' package
-          platforms: android-${{ env.ANDROID_SDK_VERSION }}
+        run: |
+          sdkmanager "platforms;android-${{ env.ANDROID_SDK_VERSION }}" "build-tools;33.0.0" "ndk;${{ env.ANDROID_NDK_VERSION }}" "cmake;3.22.1" || true
 
       - name: Restore Gradle Cache
         uses: actions/cache@v4
@@ -211,11 +201,8 @@ jobs:
           # No gradle cache - using wrapper directly
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          api-level: ${{ env.ANDROID_SDK_VERSION }}
-          ndk-version: ${{ env.ANDROID_NDK_VERSION }}
-          platforms: android-${{ env.ANDROID_SDK_VERSION }}
+        run: |
+          sdkmanager "platforms;android-${{ env.ANDROID_SDK_VERSION }}" "build-tools;33.0.0" "ndk;${{ env.ANDROID_NDK_VERSION }}" "cmake;3.22.1" || true
 
       - name: Restore Gradle Cache
         uses: actions/cache@v4
