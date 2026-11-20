@@ -1,0 +1,136 @@
+# Unreal Engine 5 - Craquez Project
+# Generated .gitignore for UE5 projects
+
+# Binaries
+Binaries/
+*.dll
+*.exe
+*.pdb
+
+# Build
+Build/
+*.build.cs
+*.target.cs
+*.uproject
+*.sln
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+
+# Intermediate
+Intermediate/
+*.suo
+*.opensdf
+*.sdf
+*.VC.db
+*.VC.VC.opendb
+*.sdf
+
+# Saved
+Saved/
+Saved/StagedBuilds/
+Saved/Autosaves/
+Saved/Backup/
+Saved/Logs/
+Saved/Config/CrashReportClient/
+Saved/Config/Windows/
+Saved/Config/Mac/
+Saved/Config/Linux/
+Saved/Config/Android/
+Saved/Config/IOS/
+
+# Derived Data Cache
+DerivedDataCache/
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# Rider
+.idea/
+
+# VS
+*.user
+*.suo
+
+# Mac
+.DS_Store
+
+# Thumbnails
+Thumbs.db
+
+# Compiled Assets
+*.uasset
+*.umap
+*.uexp
+*.ubulk
+*.ushaderbytecode
+
+# Large Assets (use Git LFS)
+# *.uasset
+# *.umap
+# *.uexp
+# *.ubulk
+# *.ushaderbytecode
+
+# Build Output
+*.apk
+*.aab
+*.ipa
+*.xcarchive
+
+# Android
+Build/Android/.gradle/
+Build/Android/local.properties
+Build/Android/app/build/
+Build/Android/app/release/
+Build/Android/captures/
+
+# Windows
+*.pdb
+*.idb
+*.ilk
+
+# Mac
+*.dSYM
+
+# Linux
+*.so
+
+# Packaging
+[Pp]ackaged/
+*.pak
+*.sig
+
+# Automation
+*.automation
+*.uproject
+
+# Plugins (compiled)
+Plugins/*/Binaries/
+Plugins/*/Intermediate/
+Plugins/*/Build/
+
+# Localization (generated)
+Localization/*/*.locres
+Localization/*/*.po
+
+# Test
+TestResults/
+
+# Profiling
+*.uprof
+
+# Temporary
+*.tmp
+*.temp
+*~
+
+# Editor
+*.autosave
+*~
+
+# OS
+Thumbs.db
+ehthumbs.db
+Desktop.ini
