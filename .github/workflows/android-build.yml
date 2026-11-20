@@ -1,0 +1,317 @@
+# Android Build Workflow for Craquez Football Game
+# Triggers on push to main, pull requests, and version tags
+# Builds APK and AAB for distribution
+
+name: Android Build
+
+on:
+  push:
+    branches: [ main, develop ]
+    tags: [ 'v*.*.*' ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build type'
+        required: true
+        default: 'release'
+        type: choice
+        options:
+          - release
+          - debug
+      upload_to_release:
+        description: 'Upload to GitHub Release (for tags only)'
+        required: false
+        default: true
+        type: boolean
+
+env:
+  # Unreal Engine version
+  UE_VERSION: '5.4'
+  # Android SDK/NDK versions
+  ANDROID_SDK_VERSION: '33'
+  ANDROID_NDK_VERSION: 'r25c'
+  # Java version
+  JAVA_VERSION: '17'
+  # Gradle version
+  GRADLE_VERSION: '8.1'
+
+jobs:
+  # Setup and cache dependencies
+  setup:
+    name: Setup
+    runs-on: ubuntu-latest
+    outputs:
+      gradle_cache_key: ${{ steps.gradle_cache.outputs.cache_key }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+          fetch-depth: 0
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: 'gradle'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          api-level: ${{ env.ANDROID_SDK_VERSION }}
+          ndk-version: ${{ env.ANDROID_NDK_VERSION }}
+          cmdline-tools-version: 'latest'
+
+      - name: Cache Gradle
+        id: gradle_cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('Build/Android/gradle/wrapper/gradle-wrapper.properties') }}-${{ hashFiles('Build/Android/build.gradle') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: ${{ env.GRADLE_VERSION }}
+
+  # Build Android APK
+  build-apk:
+    name: Build APK
+    needs: setup
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+          fetch-depth: 0
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: 'gradle'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          api-level: ${{ env.ANDROID_SDK_VERSION }}
+          ndk-version: ${{ env.ANDROID_NDK_VERSION }}
+
+      - name: Restore Gradle Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ needs.setup.outputs.gradle_cache_key }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
+      - name: Make gradlew executable
+        run: chmod +x Build/Android/gradlew
+
+      - name: Build Debug APK
+        if: github.event.inputs.build_type == 'debug' || github.event_name == 'pull_request'
+        run: |
+          cd Build/Android
+          ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Build Release APK
+        if: github.event.inputs.build_type == 'release' && github.event_name != 'pull_request'
+        run: |
+          cd Build/Android
+          ./gradlew assembleRelease --no-daemon --stacktrace
+
+      - name: Upload Debug APK
+        if: github.event.inputs.build_type == 'debug' || github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: craquez-debug-apk
+          path: Build/Android/app/build/outputs/apk/debug/*.apk
+          retention-days: 30
+
+      - name: Upload Release APK
+        if: github.event.inputs.build_type == 'release' && github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: craquez-release-apk
+          path: Build/Android/app/build/outputs/apk/release/*.apk
+          retention-days: 90
+
+  # Build Android App Bundle (AAB) for Play Store
+  build-aab:
+    name: Build AAB
+    needs: setup
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+          fetch-depth: 0
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: 'gradle'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          api-level: ${{ env.ANDROID_SDK_VERSION }}
+          ndk-version: ${{ env.ANDROID_NDK_VERSION }}
+
+      - name: Restore Gradle Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ needs.setup.outputs.gradle_cache_key }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
+      - name: Make gradlew executable
+        run: chmod +x Build/Android/gradlew
+
+      - name: Build Release AAB
+        run: |
+          cd Build/Android
+          ./gradlew bundleRelease --no-daemon --stacktrace
+
+      - name: Upload Release AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: craquez-release-aab
+          path: Build/Android/app/build/outputs/bundle/release/*.aab
+          retention-days: 90
+
+  # Create GitHub Release with APK/AAB
+  create-release:
+    name: Create GitHub Release
+    needs: [build-apk, build-aab]
+    if: startsWith(github.ref, 'refs/tags/v') && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download Release APK
+        uses: actions/download-artifact@v4
+        with:
+          name: craquez-release-apk
+          path: artifacts/apk
+
+      - name: Download Release AAB
+        uses: actions/download-artifact@v4
+        with:
+          name: craquez-release-aab
+          path: artifacts/aab
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/v')
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Craquez ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            artifacts/apk/*.apk
+            artifacts/aab/*.aab
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Build Unreal Engine project (optional - requires UE5 installed)
+  build-unreal:
+    name: Build Unreal Project
+    needs: setup
+    runs-on: windows-latest
+    if: github.event_name != 'pull_request'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+          fetch-depth: 0
+
+      - name: Setup Unreal Engine
+        uses: WalrusAI/unreal-engine-setup@v1
+        with:
+          version: '5.4'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Unreal Project for Android
+        run: |
+          # This requires UE5 to be installed on the runner
+          # For now, we document the command
+          echo "Unreal Engine Android build would run here"
+          echo "Command: UnrealBuildTool.exe Craquez Android Development -Project=Craquez.uproject"
+        shell: cmd
+
+      - name: Upload Unreal Build Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unreal-android-build
+          path: |
+            Build/Android/app/build/outputs/
+          retention-days: 7
+
+# Code quality checks
+lint:
+  name: Code Quality
+  runs-on: ubuntu-latest
+  steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        lfs: true
+
+    - name: Run clang-format check
+      run: |
+        find Plugins/FootballCore/Source -name "*.h" -o -name "*.cpp" | xargs clang-format --dry-run --Werror
+
+    - name: Check for TODO/FIXME
+      run: |
+        grep -r "TODO\|FIXME" Plugins/FootballCore/Source --include="*.h" --include="*.cpp" || true
+
+    - name: Validate .gitattributes
+      run: |
+        git check-attr --all Build/Android/**/*.fbx Build/Android/**/*.png
+
+# Security scan
+security:
+  name: Security Scan
+  runs-on: ubuntu-latest
+  steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        lfs: true
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+
+    - name: Upload Trivy results
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: 'trivy-results.sarif'
