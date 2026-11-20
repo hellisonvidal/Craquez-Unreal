@@ -36,13 +36,13 @@ env:
   JAVA_VERSION: '17'
   # Gradle version
   GRADLE_VERSION: '8.1'
-  # Android project directory
+  # Android project directory (Unreal generates this at Build/Android/)
   ANDROID_PROJECT_DIR: 'Build/Android'
   # Gradle options for CI
   GRADLE_OPTS: '-Dorg.gradle.daemon=false -Dorg.gradle.parallel=true -Dorg.gradle.configureondemand=true -Dorg.gradle.jvmargs="-Xmx2g -XX:+HeapDumpOnOutOfMemoryError"'
 
 jobs:
-  # Setup and cache dependencies - NO gradle setup action!
+  # Setup and cache dependencies - NO gradle setup action, only cache
   setup:
     name: Setup & Validate
     runs-on: ubuntu-latest
@@ -60,7 +60,8 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: ${{ env.JAVA_VERSION }}
-          cache: 'gradle'
+          # Don't use gradle cache here - we'll cache manually
+          # cache: 'gradle'
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
@@ -87,6 +88,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
+            ${{ env.ANDROID_PROJECT_DIR }}/.gradle
             ~/.gradle/caches
             ~/.gradle/wrapper
           key: gradle-${{ runner.os }}-${{ hashFiles('Build/Android/gradle/wrapper/gradle-wrapper.properties') }}-${{ hashFiles('Build/Android/build.gradle') }}
@@ -117,7 +119,7 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: ${{ env.JAVA_VERSION }}
-          cache: 'gradle'
+          # No gradle cache - using wrapper directly
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
@@ -130,6 +132,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
+            ${{ env.ANDROID_PROJECT_DIR }}/.gradle
             ~/.gradle/caches
             ~/.gradle/wrapper
           key: ${{ needs.setup.outputs.gradle_cache_key }}
@@ -157,7 +160,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: craquez-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
+          path: ${{ env.ANDROID_PROJECT_DIR }}/app/build/outputs/apk/debug/*.apk
           retention-days: 30
 
       - name: Upload Release APK
@@ -165,7 +168,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: craquez-release-apk
-          path: app/build/outputs/apk/release/*.apk
+          path: ${{ env.ANDROID_PROJECT_DIR }}/app/build/outputs/apk/release/*.apk
           retention-days: 90
 
       - name: Upload Build Scan (Optional)
@@ -174,7 +177,7 @@ jobs:
         with:
           name: gradle-build-scan
           path: |
-            app/build/reports/
+            ${{ env.ANDROID_PROJECT_DIR }}/app/build/reports/
             .gradle/
           retention-days: 7
 
@@ -202,7 +205,7 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: ${{ env.JAVA_VERSION }}
-          cache: 'gradle'
+          # No gradle cache - using wrapper directly
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
@@ -215,6 +218,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
+            ${{ env.ANDROID_PROJECT_DIR }}/.gradle
             ~/.gradle/caches
             ~/.gradle/wrapper
           key: ${{ needs.setup.outputs.gradle_cache_key }}
@@ -231,7 +235,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: craquez-release-aab
-          path: app/build/outputs/bundle/release/*.aab
+          path: ${{ env.ANDROID_PROJECT_DIR }}/app/build/outputs/bundle/release/*.aab
           retention-days: 90
 
   # Create GitHub Release with APK/AAB
