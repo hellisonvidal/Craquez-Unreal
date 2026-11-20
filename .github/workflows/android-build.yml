@@ -104,7 +104,7 @@ jobs:
         working-directory: ${{ env.ANDROID_PROJECT_DIR }}
         shell: bash
     env:
-      GRADLE_OPTS: ${{ env.GRADLE_OPTS }}
+      GRADLE_OPTS: '-Dorg.gradle.daemon=false -Dorg.gradle.parallel=true -Dorg.gradle.configureondemand=true -Dorg.gradle.jvmargs="-Xmx2g -XX:+HeapDumpOnOutOfMemoryError"'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -189,7 +189,7 @@ jobs:
         working-directory: ${{ env.ANDROID_PROJECT_DIR }}
         shell: bash
     env:
-      GRADLE_OPTS: ${{ env.GRADLE_OPTS }}
+      GRADLE_OPTS: '-Dorg.gradle.daemon=false -Dorg.gradle.parallel=true -Dorg.gradle.configureondemand=true -Dorg.gradle.jvmargs="-Xmx2g -XX:+HeapDumpOnOutOfMemoryError"'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
