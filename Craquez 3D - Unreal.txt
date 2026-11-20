@@ -1,0 +1,27 @@
+Quero ajuda para criar um jogo realista de futebol, vamos fazer um app android piloto, mais tarde, dependendo do resultado vamos mudar para outras plataformas. Vamos fazer na UE5 5.8.4 (já tenho instalada);
+https://github.com/hellisonvidal/Craquez-Unreal
+
+- Animação procedural — IK (Inverse Kinematics), motion matching, ou animação baseada em física (Euphoria-style)
+- Física da bola — Magnus effect, atrito, deformação, colisão precisa
+- IA dos jogadores — Behavior trees, GOAP, ou reinforcement learning para decisões realistas
+- Rendering avançado — Subsurface scattering (pele), cloth simulation (camisas), hair/fur, iluminação PBR, weather system
+- Áudio posicional — Reverb de estádio, cantos da torcida, impacto da bola
+- Gere o Build.cs pra um plugin 'FootballCore' com módulos, Gameplay, AI, Networking, UI;
+- replicação determinística e interface para Blueprint"
+- Revise este StateTree de IA tática — o transition de 'Press' para 'Intercept' tá travando"
+- tenho alguns assets na na pasta que pode usar, não quero distorções nos modelos, quero que use exatamente como estão;
+- quero uniformes também, que não sejam pintados no corpo dos jogadores;
+- criar tudo que seja necessário e me orientar quanto à UE5 conforme surja a necessidade;
+- nome do jogo será Craquez. Criar uma arte visual bonita e interface amigável ao jogo;
+Procurar e implementar sobre estes conceitos:
+- Niagara + Compute Shaders → gerar geometria/partículas na GPU
+- Control Rig / Animation Blueprint → IK procedural, motion warping
+- Chaos Physics → destruição, cloth, veículos (bola)
+- MetaHuman → tecnicamente usa modelos, mas o framework é procedural
+- PCG (Procedural Content Generation) → estádio, grama, multidão
+
+
+Quero: 11vs11, vamos chamar de jogo-treino, um time contra o outro e também 1vs1, atacante x goleiro, bola com física Magnus, chute/passe, IA básica defender/chutar gol, 1 estádio low-poly, single-player offline;
+nunca abri UE5;
+sem prazo para terminar;
+aceito todas as decisões que você necessitar de autorização

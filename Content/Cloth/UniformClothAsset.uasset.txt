@@ -1,0 +1,157 @@
+<!--
+  Uniform Cloth Asset - Chaos Cloth Simulation Setup
+  This documents the cloth asset setup for player uniforms
+  In UE5, create this as a Chaos Cloth Asset using the Cloth Editor
+  The uniform is a SEPARATE mesh from the body, simulated with Chaos Cloth
+-->
+
+<ChaosClothAsset Name="UniformClothAsset">
+  <Description>Cloth simulation for player uniforms - separate from body mesh</Description>
+
+  <!-- Mesh Setup -->
+  <Mesh>
+    <Property Name="UniformMesh">/Game/Assets/Characters/Uniforms/Uniform_Mesh</Property>
+    <Property Name="MeshType">SkeletalMesh</Property>
+    <Property Name="LODCount">3</Property>
+    <Property Name="SectionCount">4</Property> <!-- Front, Back, Left Sleeve, Right Sleeve -->
+  </Mesh>
+
+  <!-- Cloth Properties (Material-based from M_PlayerUniform) -->
+  <ClothProperties>
+    <!-- Structural Properties -->
+    <Property Name="BendingStiffness" Value="10.0" Min="0.1" Max="100.0" Description="Resistance to bending - higher = stiffer fabric" />
+    <Property Name="StretchingStiffness" Value="1000.0" Min="100.0" Max="10000.0" Description="Resistance to stretching" />
+    <Property Name="Damping" Value="0.1" Min="0.0" Max="1.0" Description="Velocity damping" />
+    <Property Name="Friction" Value="0.5" Min="0.0" Max="1.0" Description="Self-collision friction" />
+    <Property Name="Mass" Value="0.2" Min="0.05" Max="1.0" Description="Mass per unit area (kg/m²)" />
+    <Property Name="GravityScale" Value="1.0" Min="0.0" Max="5.0" Description="Gravity multiplier" />
+
+    <!-- Air/Aero -->
+    <Property Name="AirDrag" Value="0.1" Min="0.0" Max="2.0" Description="Air resistance coefficient" />
+    <Property Name="AirLift" Value="0.05" Min="0.0" Max="1.0" Description="Lift from air movement" />
+    <Property Name="WindScale" Value="0.5" Min="0.0" Max="5.0" Description="Wind influence multiplier" />
+
+    <!-- Tethering (attachment to body) -->
+    <Property Name="TetherStiffness" Value="100.0" Min="10.0" Max="1000.0" Description="Attachment stiffness to body" />
+    <Property Name="TetherLimit" Value="0.05" Min="0.01" Max="0.5" Description="Max tether stretch (meters)" />
+
+    <!-- Collision -->
+    <Property Name="SelfCollisionThickness" Value="0.005" Min="0.001" Max="0.05" Description="Self-collision thickness" />
+    <Property Name="SelfCollisionStiffness" Value="100.0" Min="10.0" Max="1000.0" Description="Self-collision response" />
+    <Property Name="CollisionThickness" Value="0.01" Min="0.001" Max="0.1" Description="Collision with body thickness" />
+    <Property Name="CollisionFriction" Value="0.6" Min="0.0" Max="1.0" Description="Friction against body" />
+    <Property Name="CollisionStiffness" Value="500.0" Min="100.0" Max="5000.0" Description="Collision response stiffness" />
+
+    <!-- Solver -->
+    <Property Name="SolverIterations" Value="8" Min="4" Max="20" Description="Solver iterations per frame" />
+    <Property Name="SolverFrequency" Value="120" Min="60" Max="240" Description="Solver frequency (Hz)" />
+    <Property Name="bUseContinuousCollision" Value="True" Description="CCD for fast motion" />
+  </ClothProperties>
+
+  <!-- Constraints Setup -->
+  <Constraints>
+    <!-- Distance Constraints (Stretching) -->
+    <Constraint Name="DistanceConstraints" Type="Distance">
+      <Property Name="Stiffness" Value="1000.0" />
+      <Property Name="Compliance" Value="0.001" />
+    </Constraint>
+
+    <!-- Bending Constraints -->
+    <Constraint Name="BendingConstraints" Type="Bending">
+      <Property Name="Stiffness" Value="10.0" />
+      <Property Name="Compliance" Value="0.1" />
+    </Constraint>
+
+    <!-- Tether Constraints (to body) -->
+    <Constraint Name="TetherConstraints" Type="Tether">
+      <Property Name="Stiffness" Value="100.0" />
+      <Property Name="MaxDistance" Value="0.05" />
+      <Property Name="TetherVertices" Value="BodyAttachmentVertices" />
+    </Constraint>
+
+    <!-- Collision Constraints -->
+    <Constraint Name="CollisionConstraints" Type="Collision">
+      <Property Name="Thickness" Value="0.005" />
+      <Property Name="Stiffness" Value="500.0" />
+      <Property Name="Friction" Value="0.6" />
+    </Constraint>
+  </Constraints>
+
+  <!-- Vertex Groups for Different Behaviors -->
+  <VertexGroups>
+    <Group Name="BodyAttached" Description="Vertices attached to body (shoulders, waist, neck)" Weight="1.0" />
+    <Group Name="FreeHanging" Description="Loose parts (bottom of jersey, sleeve ends)" Weight="0.0" />
+    <Group Name="SleeveCuff" Description="Sleeve cuffs - tighter" Weight="0.8" />
+    <Group Name="Collar" Description="Collar area - structured" Weight="0.9" />
+  </VertexGroups>
+
+  <!-- Body Collision Setup -->
+  <BodyCollision>
+    <Property Name="CollisionMesh">/Game/Assets/Characters/BodyCollision/Body_Collision_Mesh</Property>
+    <Property Name="CollisionCapsules">
+      <!-- Capsules for efficient collision -->
+      <Capsule Bone="spine_03" Radius="0.15" Height="0.4" />
+      <Capsule Bone="spine_02" Radius="0.13" Height="0.3" />
+      <Capsule Bone="spine_01" Radius="0.11" Height="0.25" />
+      <Capsule Bone="clavicle_l" Radius="0.06" Height="0.2" />
+      <Capsule Bone="clavicle_r" Radius="0.06" Height="0.2" />
+      <Capsule Bone="upperarm_l" Radius="0.05" Height="0.25" />
+      <Capsule Bone="upperarm_r" Radius="0.05" Height="0.25" />
+      <Capsule Bone="lowerarm_l" Radius="0.04" Height="0.25" />
+      <Capsule Bone="lowerarm_r" Radius="0.04" Height="0.25" />
+      <Capsule Bone="pelvis" Radius="0.12" Height="0.2" />
+      <Capsule Bone="thigh_l" Radius="0.07" Height="0.35" />
+      <Capsule Bone="thigh_r" Radius="0.07" Height="0.35" />
+      <Capsule Bone="calf_l" Radius="0.05" Height="0.35" />
+      <Capsule Bone="calf_r" Radius="0.05" Height="0.35" />
+    </Property>
+    <Property Name="CollisionThickness" Value="0.01" />
+    <Property Name="CollisionFriction" Value="0.6" />
+  </BodyCollision>
+
+  <!-- Animation Drive (for blending with animation) -->
+  <AnimationDrive>
+    <Property Name="bEnableAnimationDrive" Value="True" />
+    <Property Name="DriveStiffness" Value="500.0" />
+    <Property Name="DriveDamping" Value="10.0" />
+    <Property Name="DriveWeight" Value="0.3" Description="How much animation drives vs simulation" />
+  </AnimationDrive>
+
+  <!-- Wind Setup -->
+  <Wind>
+    <Property Name="bEnableWind" Value="True" />
+    <Property Name="WindSource" Type="Directional" Description="Use level wind or local" />
+    <Property Name="WindStrength" Value="0.5" />
+    <Property Name="WindTurbulence" Value="0.2" />
+    <Property Name="WindFrequency" Value="0.5" />
+  </Wind>
+
+  <!-- LOD Settings -->
+  <LODSettings>
+    <LOD Index="0" Name="High" VertexCount="Full" SolverIterations="8" SelfCollision="True" />
+    <LOD Index="1" Name="Medium" VertexCount="50%" SolverIterations="6" SelfCollision="True" />
+    <LOD Index="2" Name="Low" VertexCount="25%" SolverIterations="4" SelfCollision="False" />
+  </LODSettings>
+
+  <!-- Performance -->
+  <Performance>
+    <Property Name="bUseGPUSimulation" Value="True" Description="Run on GPU for performance" />
+    <Property Name="bUseAsyncSimulation" Value="True" Description="Async cloth simulation" />
+    <Property Name="MaxVertices" Value="8000" Description="Max vertices per cloth" />
+    <Property Name="MaxTriangles" Value="16000" Description="Max triangles per cloth" />
+  </Performance>
+
+  <!-- Setup Instructions -->
+  <SetupInstructions>
+    <Step Number="1">Import uniform mesh as SkeletalMesh (separate from body)</Step>
+    <Step Number="2">Create PhysicsAsset for uniform with Chaos Cloth</Step>
+    <Step Number="3">Paint vertex weights for BodyAttached (shoulders, neck, waist) and FreeHanging groups</Step>
+    <Step Number="4">Setup body collision capsules in PhysicsAsset matching body skeleton</Step>
+    <Step Number="5">Create ClothAsset from PhysicsAsset</Step>
+    <Step Number="6">Configure cloth properties per material parameters</Step>
+    <Step Number="7">Attach cloth component to character blueprint</Step>
+    <Step Number="8">Bind cloth to body bones using TetherConstraints</Step>
+    <Step Number="9">Test simulation at various movement speeds</Step>
+    <Step Number="10">Optimize LODs and vertex counts for target platform</Step>
+  </SetupInstructions>
+</ChaosClothAsset>

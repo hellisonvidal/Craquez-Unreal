@@ -1,0 +1,54 @@
+{
+  "FileVersion": 3,
+  "Version": 1,
+  "VersionName": "1.0.0",
+  "FriendlyName": "FootballCore",
+  "Description": "Core football gameplay systems for Craquez - Ball physics, Player AI, Networking, UI",
+  "Category": "Gameplay",
+  "CreatedBy": "Craquez Team",
+  "CreatedByURL": "https://github.com/hellisonvidal/Craquez-Unreal",
+  "DocsURL": "",
+  "MarketplaceURL": "",
+  "SupportURL": "",
+  "CanContainContent": true,
+  "IsBetaVersion": false,
+  "IsExperimentalVersion": false,
+  "Installed": false,
+  "Modules": [
+    {
+      "Name": "FootballCore",
+      "Type": "Runtime",
+      "LoadingPhase": "Default",
+      "WhitelistPlatforms": ["Win64", "Mac", "Linux", "Android", "IOS"]
+    },
+    {
+      "Name": "FootballCoreGameplay",
+      "Type": "Runtime",
+      "LoadingPhase": "Default",
+      "WhitelistPlatforms": ["Win64", "Mac", "Linux", "Android", "IOS"],
+      "AdditionalDependencies": ["FootballCore"]
+    },
+    {
+      "Name": "FootballCoreAI",
+      "Type": "Runtime",
+      "LoadingPhase": "Default",
+      "WhitelistPlatforms": ["Win64", "Mac", "Linux", "Android", "IOS"],
+      "AdditionalDependencies": ["FootballCore", "FootballCoreGameplay", "AIModule", "GameplayTasks"]
+    },
+    {
+      "Name": "FootballCoreNetworking",
+      "Type": "Runtime",
+      "LoadingPhase": "Default",
+      "WhitelistPlatforms": ["Win64", "Mac", "Linux", "Android", "IOS"],
+      "AdditionalDependencies": ["FootballCore", "FootballCoreGameplay", "NetCore"]
+    },
+    {
+      "Name": "FootballCoreUI",
+      "Type": "Runtime",
+      "LoadingPhase": "Default",
+      "WhitelistPlatforms": ["Win64", "Mac", "Linux", "Android", "IOS"],
+      "AdditionalDependencies": ["FootballCore", "FootballCoreGameplay", "UMG", "Slate", "SlateCore"]
+    }
+  ],
+  "SupportedTargetPlatforms": ["Windows", "Mac", "Linux", "Android", "IOS"]
+}

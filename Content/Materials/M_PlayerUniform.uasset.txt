@@ -1,0 +1,231 @@
+<!--
+  Player Uniform Material with Cloth Simulation
+  This material is applied to a separate cloth mesh, NOT painted on the body
+  In UE5, create this as a Material asset and use with Chaos Cloth simulation
+-->
+
+<Material Name="M_PlayerUniform" Domain="Surface" BlendMode="Opaque" ShadingModel="DefaultLit">
+  <Description>Player uniform material with team colors, numbers, and cloth physics properties</Description>
+
+  <Parameters>
+    <!-- Team Colors -->
+    <Parameter Name="PrimaryColor" Type="Vector3" Default="0.0,0.2,0.8" Description="Main team color (Home: Blue)" />
+    <Parameter Name="SecondaryColor" Type="Vector3" Default="1.0,1.0,1.0" Description="Secondary color (stripes, trim)" />
+    <Parameter Name="AccentColor" Type="Vector3" Default="1.0,0.8,0.0" Description="Accent color (gold/yellow)" />
+
+    <!-- Jersey Pattern -->
+    <Parameter Name="PatternTexture" Type="Texture2D" Default="/Game/Textures/Uniforms/T_Jersey_Patterns" Description="Pattern atlas: stripes, hoops, solid, gradient" />
+    <Parameter Name="PatternIndex" Type="Scalar" Default="0" Min="0" Max="15" Description="Which pattern to use from atlas" />
+    <Parameter Name="PatternScale" Type="Vector2" Default="1.0,1.0" Description="Pattern UV scale" />
+    <Parameter Name="PatternRotation" Type="Scalar" Default="0.0" Description="Pattern rotation in degrees" />
+
+    <!-- Number/Name -->
+    <Parameter Name="NumberTexture" Type="Texture2D" Default="/Game/Textures/Uniforms/T_Numbers" Description="Number atlas texture" />
+    <Parameter Name="PlayerNumber" Type="Scalar" Default="10" Min="1" Max="99" Description="Player number" />
+    <Parameter Name="NumberColor" Type="Vector3" Default="1.0,1.0,1.0" Description="Number color" />
+    <Parameter Name="NumberPosition" Type="Vector2" Default="0.5,0.3" Description="Number UV position (0-1)" />
+    <Parameter Name="NumberScale" Type="Scalar" Default="0.15" Description="Number size" />
+
+    <Parameter Name="NameTexture" Type="Texture2D" Default="/Game/Textures/Uniforms/T_Name_Letters" Description="Name letters atlas" />
+    <Parameter Name="PlayerName" Type="String" Default="PLAYER" Description="Player name for back of jersey" />
+    <Parameter Name="NameColor" Type="Vector3" Default="1.0,1.0,1.0" Description="Name text color" />
+    <Parameter Name="NamePosition" Type="Vector2" Default="0.5,0.15" Description="Name UV position" />
+    <Parameter Name="NameScale" Type="Scalar" Default="0.08" Description="Name text size" />
+
+    <!-- Sponsors/Logos -->
+    <Parameter Name="SponsorTexture" Type="Texture2D" Default="/Game/Textures/Uniforms/T_Sponsors" Description="Sponsor logos atlas" />
+    <Parameter Name="SponsorIndex" Type="Scalar" Default="0" Min="0" Max="10" Description="Which sponsor logo" />
+    <Parameter Name="SponsorPosition" Type="Vector2" Default="0.5,0.5" Description="Sponsor UV position" />
+    <Parameter Name="SponsorScale" Type="Scalar" Default="0.2" Description="Sponsor size" />
+    <Parameter Name="SponsorColor" Type="Vector3" Default="1.0,1.0,1.0" Description="Sponsor tint" />
+
+    <!-- Fabric Properties -->
+    <Parameter Name="FabricNormal" Type="Texture2D" Default="/Game/Textures/Uniforms/T_Fabric_Normal" Description="Fabric weave normal map" />
+    <Parameter Name="FabricNormalStrength" Type="Scalar" Default="0.5" Description="Normal map intensity" />
+    <Parameter Name="FabricRoughness" Type="Texture2D" Default="/Game/Textures/Uniforms/T_Fabric_Roughness" Description="Fabric roughness variation" />
+    <Parameter Name="BaseRoughness" Type="Scalar" Default="0.6" Description="Base fabric roughness" />
+    <Parameter Name="Metallic" Type="Scalar" Default="0.0" Description="Fabric metallic (0 for cloth)" />
+
+    <!-- Subsurface for thin fabric -->
+    <Parameter Name="SubsurfaceColor" Type="Vector3" Default="0.8,0.8,0.8" Description="Subsurface scattering color" />
+    <Parameter Name="SubsurfaceAmount" Type="Scalar" Default="0.05" Description="Thin fabric translucency" />
+
+    <!-- Cloth Physics Properties (for Chaos Cloth) -->
+    <Parameter Name="BendingStiffness" Type="Scalar" Default="10.0" Description="Cloth bending resistance" />
+    <Parameter Name="StretchingStiffness" Type="Scalar" Default="1000.0" Description="Cloth stretch resistance" />
+    <Parameter Name="Damping" Type="Scalar" Default="0.1" Description="Cloth damping" />
+    <Parameter Name="Friction" Type="Scalar" Default="0.5" Description="Cloth self-friction" />
+    <Parameter Name="Mass" Type="Scalar" Default="0.2" Description="Cloth mass per area (kg/m²)" />
+    <Parameter Name="GravityScale" Type="Scalar" Default="1.0" Description="Gravity multiplier" />
+    <Parameter Name="AirDrag" Type="Scalar" Default="0.1" Description="Air resistance" />
+    <Parameter Name="WindScale" Type="Scalar" Default="0.5" Description="Wind influence" />
+
+    <!-- Sweat/Dirt -->
+    <Parameter Name="SweatTexture" Type="Texture2D" Default="/Game/Textures/Uniforms/T_Sweat_Mask" Description="Sweat accumulation mask" />
+    <Parameter Name="SweatAmount" Type="Scalar" Default="0.0" Description="Current sweat level (0-1)" />
+    <Parameter Name="SweatColor" Type="Vector3" Default="0.9,0.9,0.95" Description="Sweat color" />
+    <Parameter Name="DirtTexture" Type="Texture2D" Default="/Game/Textures/Uniforms/T_Dirt_Mask" Description="Dirt/grass stain mask" />
+    <Parameter Name="DirtAmount" Type="Scalar" Default="0.0" Description="Current dirt level (0-1)" />
+    <Parameter Name="DirtColor" Type="Vector3" Default="0.3,0.25,0.2" Description="Dirt color" />
+
+    <!-- Dynamic Parameters (updated at runtime) -->
+    <Parameter Name="TeamSide" Type="Scalar" Default="0" Description="0=Home, 1=Away - for color swapping" />
+    <Parameter Name="IsGoalkeeper" Type="Boolean" Default="False" Description="Different kit for GK" />
+    <Parameter Name="KitVariant" Type="Scalar" Default="0" Description="Home/Away/Third/Goalkeeper kit" />
+  </Parameters>
+
+  <Nodes>
+    <!-- Team Color Selection -->
+    <Node Type="DynamicParameter" Name="TeamSideParam" DefaultValue="0" />
+    <Node Type="VectorParameter" Name="HomePrimary" Value="0.0,0.2,0.8" />
+    <Node Type="VectorParameter" Name="HomeSecondary" Value="1.0,1.0,1.0" />
+    <Node Type="VectorParameter" Name="AwayPrimary" Value="0.8,0.1,0.1" />
+    <Node Type="VectorParameter" Name="AwaySecondary" Value="1.0,0.9,0.2" />
+    <Node Type="VectorParameter" Name="GKHomePrimary" Value="0.0,0.6,0.3" />
+    <Node Type="VectorParameter" Name="GKAwayPrimary" Value="1.0,0.5,0.0" />
+
+    <Node Type="Branch" Name="SelectTeamColors">
+      <Condition>IsGoalkeeper</Condition>
+      <True>
+        <Node Type="Branch" Name="GKTeamSide">
+          <Condition>TeamSide == 0</Condition>
+          <True>
+            <Output PrimaryColor="GKHomePrimary" SecondaryColor="HomeSecondary" />
+          </True>
+          <False>
+            <Output PrimaryColor="GKAwayPrimary" SecondaryColor="AwaySecondary" />
+          </False>
+        </Node>
+      </True>
+      <False>
+        <Node Type="Branch" Name="PlayerTeamSide">
+          <Condition>TeamSide == 0</Condition>
+          <True>
+            <Output PrimaryColor="HomePrimary" SecondaryColor="HomeSecondary" />
+          </True>
+          <False>
+            <Output PrimaryColor="AwayPrimary" SecondaryColor="AwaySecondary" />
+          </False>
+        </Node>
+      </False>
+    </Node>
+
+    <!-- Pattern Application -->
+    <Node Type="TextureSample" Name="PatternSample" Texture="PatternTexture" />
+    <Node Type="TextureCoordinate" Name="PatternUV" Scale="PatternScale" Rotation="PatternRotation" />
+    <Node Type="TextureAtlas" Name="PatternAtlas">
+      <Input Texture="PatternSample" />
+      <Input Index="PatternIndex" />
+      <Input UV="PatternUV" />
+    </Node>
+    <Node Type="LinearInterpolate" Name="PatternBlend">
+      <Input A="PrimaryColor" />
+      <Input B="SecondaryColor" />
+      <Input Alpha="PatternAtlas" />
+    </Node>
+
+    <!-- Number Rendering -->
+    <Node Type="TextureSample" Name="NumberSample" Texture="NumberTexture" />
+    <Node Type="TextureAtlas" Name="NumberAtlas">
+      <Input Texture="NumberSample" />
+      <Input Index="PlayerNumber" />
+      <Input UV="NumberPosition" Scale="NumberScale" />
+    </Node>
+    <Node Type="VectorParameter" Name="NumberColorParam" Value="NumberColor" />
+    <Node Type="Multiply" Name="ColoredNumber">
+      <Input A="NumberAtlas" />
+      <Input B="NumberColorParam" />
+    </Node>
+    <Node Type="LinearInterpolate" Name="NumberOverlay">
+      <Input A="PatternBlend" />
+      <Input B="ColoredNumber" />
+      <Input Alpha="NumberAtlas.A" />
+    </Node>
+
+    <!-- Name Rendering -->
+    <Node Type="TextRender" Name="NameText">
+      <Input Text="PlayerName" />
+      <Input Font="/Game/Fonts/UniformFont" />
+      <Input Color="NameColor" />
+      <Input Size="NameScale" />
+      <Input Position="NamePosition" />
+    </Node>
+    <Node Type="LinearInterpolate" Name="NameOverlay">
+      <Input A="NumberOverlay" />
+      <Input B="NameText" />
+      <Input Alpha="NameText.Alpha" />
+    </Node>
+
+    <!-- Sponsor -->
+    <Node Type="TextureSample" Name="SponsorSample" Texture="SponsorTexture" />
+    <Node Type="TextureAtlas" Name="SponsorAtlas">
+      <Input Texture="SponsorSample" />
+      <Input Index="SponsorIndex" />
+      <Input UV="SponsorPosition" Scale="SponsorScale" />
+    </Node>
+    <Node Type="Multiply" Name="ColoredSponsor">
+      <Input A="SponsorAtlas" />
+      <Input B="SponsorColor" />
+    </Node>
+    <Node Type="LinearInterpolate" Name="SponsorOverlay">
+      <Input A="NameOverlay" />
+      <Input B="ColoredSponsor" />
+      <Input Alpha="SponsorAtlas.A" />
+    </Node>
+
+    <!-- Fabric Normal -->
+    <Node Type="TextureSample" Name="FabricNormalSample" Texture="FabricNormal" />
+    <Node Type="FlattenNormal" Name="FabricNormalFlat">
+      <Input Normal="FabricNormalSample" Strength="FabricNormalStrength" />
+    </Node>
+
+    <!-- Roughness -->
+    <Node Type="TextureSample" Name="FabricRoughnessSample" Texture="FabricRoughness" />
+    <Node Type="ScalarParameter" Name="BaseRoughnessParam" Value="BaseRoughness" />
+    <Node Type="LinearInterpolate" Name="RoughnessBlend">
+      <Input A="BaseRoughnessParam" />
+      <Input B="FabricRoughnessSample.R" />
+      <Input Alpha="0.5" />
+    </Node>
+
+    <!-- Sweat -->
+    <Node Type="TextureSample" Name="SweatSample" Texture="SweatTexture" />
+    <Node Type="VectorParameter" Name="SweatColorParam" Value="SweatColor" />
+    <Node Type="Multiply" Name="SweatColorMult">
+      <Input A="SweatSample" />
+      <Input B="SweatColorParam * SweatAmount" />
+    </Node>
+    <Node Type="LinearInterpolate" Name="SweatOverlay">
+      <Input A="SponsorOverlay" />
+      <Input B="SweatColorMult" />
+      <Input Alpha="SweatSample.R * SweatAmount" />
+    </Node>
+
+    <!-- Dirt -->
+    <Node Type="TextureSample" Name="DirtSample" Texture="DirtTexture" />
+    <Node Type="VectorParameter" Name="DirtColorParam" Value="DirtColor" />
+    <Node Type="Multiply" Name="DirtColorMult">
+      <Input A="DirtSample" />
+      <Input B="DirtColorParam * DirtAmount" />
+    </Node>
+    <Node Type="LinearInterpolate" Name="FinalColor">
+      <Input A="SweatOverlay" />
+      <Input B="DirtColorMult" />
+      <Input Alpha="DirtSample.R * DirtAmount" />
+    </Node>
+
+    <!-- Output -->
+    <Output BaseColor="FinalColor" />
+    <Output Normal="FabricNormalFlat" />
+    <Output Roughness="RoughnessBlend" />
+    <Output Metallic="Metallic" />
+    <Output SubsurfaceColor="SubsurfaceColor" SubsurfaceAmount="SubsurfaceAmount" />
+  </Nodes>
+
+  <UsageFlags>
+    <Flag Name="UsedWithStaticLighting" Value="True" />
+    <Flag Name="UsedWithSkeletalMesh" Value="True" />
+    <Flag Name="UsedWithClothing" Value="True" />
+    <Flag Name="UsedWithVirtualTexturing" Value="True" />
+  </UsageFlags>
+</Material>

@@ -1,0 +1,816 @@
+<!--
+  PCG (Procedural Content Generation) Graphs for Craquez
+  Stadium generation, Grass placement, Crowd distribution
+  In UE5, create these as PCG Graphs using the PCG Editor
+-->
+
+<PCGGraphs>
+  <!-- ============================================================
+       STADIUM GENERATION GRAPH
+       ============================================================ -->
+  <Graph Name="PCG_StadiumGenerator" Description="Generates complete stadium from parameters">
+    <Description>Creates stadium stands, roof, facilities, parking from configurable parameters</Description>
+
+    <Parameters>
+      <Parameter Name="StadiumName" Type="String" Default="Craquez Arena" />
+      <Parameter Name="Capacity" Type="Integer" Default="50000" Min="10000" Max="100000" />
+      <Parameter Name="PitchLength" Type="Float" Default="105.0" Min="90.0" Max="120.0" Description="Meters" />
+      <Parameter Name="PitchWidth" Type="Float" Default="68.0" Min="45.0" Max="90.0" Description="Meters" />
+      <Parameter Name="StandHeight" Type="Float" Default="25.0" Min="10.0" Max="50.0" Description="Meters" />
+      <Parameter Name="StandDepth" Type="Float" Default="30.0" Min="15.0" Max="50.0" Description="Meters" />
+      <Parameter Name="RowSpacing" Type="Float" Default="0.8" Min="0.7" Max="1.0" Description="Meters" />
+      <Parameter Name="SeatSpacing" Type="Float" Default="0.5" Min="0.45" Max="0.6" Description="Meters" />
+      <Parameter Name="RowsPerSection" Type="Integer" Default="30" Min="10" Max="60" />
+      <Parameter Name="SectionsPerSide" Type="Integer" Default="8" Min="4" Max="20" />
+      <Parameter Name="HasRoof" Type="Boolean" Default="True" />
+      <Parameter Name="RoofHeight" Type="Float" Default="40.0" Min="30.0" Max="60.0" />
+      <Parameter Name="RoofCoverage" Type="Float" Default="0.8" Min="0.5" Max="1.0" />
+      <Parameter Name="CornerTowerCount" Type="Integer" Default="4" Min="0" Max="8" />
+      <Parameter Name="TowerHeight" Type="Float" Default="50.0" Min="30.0" Max="80.0" />
+      <Parameter Name="ConcourseWidth" Type="Float" Default="10.0" Min="5.0" Max="20.0" />
+      <Parameter Name="ConcourseLevels" Type="Integer" Default="2" Min="1" Max="4" />
+      <Parameter Name="VIPBoxCount" Type="Integer" Default="50" Min="0" Max="200" />
+      <Parameter Name="PressBoxLength" Type="Float" Default="50.0" Min="20.0" Max="100.0" />
+      <Parameter Name="LightingTowerCount" Type="Integer" Default="4" Min="4" Max="8" />
+      <Parameter Name="LightingTowerHeight" Type="Float" Default="60.0" Min="40.0" Max="80.0" />
+      <Parameter Name="VideoBoardCount" Type="Integer" Default="2" Min="1" Max="4" />
+      <Parameter Name="VideoBoardSize" Type="Vector2" Default="20,10" Description="Meters" />
+      <Parameter Name="ParkingCapacity" Type="Integer" Default="2000" Min="0" Max="10000" />
+      <Parameter Name="ParkingLevels" Type="Integer" Default="2" Min="1" Max="4" />
+      <Parameter Name="EntranceGateCount" Type="Integer" Default="16" Min="8" Max="32" />
+      <Parameter Name="ArchStyle" Type="Enum" Default="Modern" Options="Modern,Classic,Brutalist,Organic" />
+      <Parameter Name="PrimaryMaterial" Type="Object" Default="/Game/Materials/Stadium/M_Stadium_Concrete" />
+      <Parameter Name="SeatMaterial_Home" Type="Object" Default="/Game/Materials/Stadium/M_Seat_Home" />
+      <Parameter Name="SeatMaterial_Away" Type="Object" Default="/Game/Materials/Stadium/M_Seat_Away" />
+      <Parameter Name="SeatMaterial_Neutral" Type="Object" Default="/Game/Materials/Stadium/M_Seat_Neutral" />
+      <Parameter Name="GlassMaterial" Type="Object" Default="/Game/Materials/Stadium/M_Stadium_Glass" />
+      <Parameter Name="RoofMaterial" Type="Object" Default="/Game/Materials/Stadium/M_Stadium_Roof" />
+      <Parameter Name="GrassMaterial" Type="Object" Default="/Game/Materials/Stadium/M_Stadium_Grass" />
+    </Parameters>
+
+    <Nodes>
+      <!-- 1. Create Pitch Bounds -->
+      <Node Type="PCGBox" Name="PitchBounds">
+        <Input Name="Min" Value="-PitchLength/2, -PitchWidth/2, 0" />
+        <Input Name="Max" Value="PitchLength/2, PitchWidth/2, 0.1" />
+        <Output Name="PitchArea" />
+      </Node>
+
+      <!-- 2. Generate Stand Layout (4 sides) -->
+      <Node Type="PCGRepeat" Name="StandLayout_Repeat">
+        <Input Name="Count" Value="4" />
+        <Input Name="Transform" Value="Rotate 90 deg per iteration" />
+        <SubGraph Name="StandSideGenerator">
+          <Node Type="PCGExtrude" Name="StandExtrude">
+            <Input Name="Profile" Value="StandProfile" />
+            <Input Name="Length" Value="StandLength" />
+            <Input Name="Height" Value="StandHeight" />
+            <Output Name="StandMesh" />
+          </Node>
+
+          <Node Type="PCGGrid" Name="SeatGrid">
+            <Input Name="CellSize" Value="SeatSpacing, RowSpacing, 0" />
+            <Input Name="GridSize" Value="SeatsPerRow, RowsPerSection, 1" />
+            <Input Name="Offset" Value="RowOffset, 0, FirstRowHeight" />
+            <Output Name="SeatPoints" />
+          </Node>
+
+          <Node Type="PCGStaticMeshSpawner" Name="SeatSpawner">
+            <Input Name="Points" Value="SeatPoints" />
+            <Input Name="Mesh" Value="SeatMesh" />
+            <Input Name="Material" Value="SeatMaterial_Home/Away/Neutral" />
+            <Input Name="Density" Value="1.0" />
+            <Output Name="Seats" />
+          </Node>
+
+          <Node Type="PCGStaticMeshSpawner" Name="VIPBoxSpawner">
+            <Input Name="Points" Value="VIPBoxLocations" />
+            <Input Name="Mesh" Value="VIPBoxMesh" />
+            <Input Name="Material" Value="GlassMaterial" />
+            <Output Name="VIPBoxes" />
+          </Node>
+        </SubGraph>
+      </Node>
+
+      <!-- 3. Generate Roof -->
+      <Node Type="PCGBranch" Name="RoofBranch" Condition="HasRoof">
+        <True>
+          <Node Type="PCGLoft" Name="RoofLoft">
+            <Input Name="InnerProfile" Value="StandTopProfile" />
+            <Input Name="OuterProfile" Value="RoofOuterProfile" />
+            <Input Name="Height" Value="RoofHeight - StandHeight" />
+            <Input Name="Coverage" Value="RoofCoverage" />
+            <Output Name="RoofMesh" />
+          </Node>
+
+          <Node Type="PCGStaticMeshSpawner" Name="RoofSupportSpawner">
+            <Input Name="Points" Value="SupportColumnLocations" />
+            <Input Name="Mesh" Value="RoofColumnMesh" />
+            <Input Name="Material" Value="PrimaryMaterial" />
+            <Output Name="RoofSupports" />
+          </Node>
+
+          <Node Type="PCGStaticMeshSpawner" Name="LightingTowerSpawner">
+            <Input Name="Points" Value="LightingTowerLocations" />
+            <Input Name="Mesh" Value="LightingTowerMesh" />
+            <Input Name="Material" Value="PrimaryMaterial" />
+            <Output Name="LightingTowers" />
+          </Node>
+        </True>
+        <False>
+          <!-- Open stadium - just lighting towers -->
+          <Node Type="PCGStaticMeshSpawner" Name="LightingTowerSpawner_Open">
+            <Input Name="Points" Value="LightingTowerLocations" />
+            <Input Name="Mesh" Value="LightingTowerMesh" />
+            <Input Name="Material" Value="PrimaryMaterial" />
+            <Output Name="LightingTowers" />
+          </Node>
+        </False>
+      </Node>
+
+      <!-- 4. Generate Corner Towers -->
+      <Node Type="PCGRepeat" Name="CornerTowerRepeat" Count="CornerTowerCount">
+        <SubGraph Name="CornerTowerGenerator">
+          <Node Type="PCGExtrude" Name="TowerExtrude">
+            <Input Name="Profile" Value="TowerProfile" />
+            <Input Name="Height" Value="TowerHeight" />
+            <Output Name="TowerMesh" />
+          </Node>
+
+          <Node Type="PCGStaticMeshSpawner" Name="TowerDetailSpawner">
+            <Input Name="Points" Value="TowerDetailPoints" />
+            <Input Name="Mesh" Value="TowerDetailMesh" />
+            <Output Name="TowerDetails" />
+          </Node>
+        </SubGraph>
+      </Node>
+
+      <!-- 5. Generate Concourses -->
+      <Node Type="PCGRepeat" Name="ConcourseRepeat" Count="ConcourseLevels">
+        <SubGraph Name="ConcourseGenerator">
+          <Node Type="PCGOffset" Name="ConcourseOffset">
+            <Input Name="Source" Value="StandTopEdge" />
+            <Input Name="Offset" Value="0, -ConcourseWidth, LevelHeight * Index" />
+            <Output Name="ConcourseArea" />
+          </Node>
+
+          <Node Type="PCGStaticMeshSpawner" Name="ConcourseFloorSpawner">
+            <Input Name="Points" Value="ConcourseArea" />
+            <Input Name="Mesh" Value="ConcourseFloorTile" />
+            <Input Name="Material" Value="PrimaryMaterial" />
+            <Output Name="ConcourseFloor" />
+          </Node>
+
+          <Node Type="PCGStaticMeshSpawner" Name="ConcourseFacilitySpawner">
+            <Input Name="Points" Value="FacilityLocations" />
+            <Input Name="Meshes" Value="[ConcessionMesh, RestroomMesh, FirstAidMesh, ShopMesh]" />
+            <Input Name="Materials" Value="[ConcessionMat, RestroomMat, FirstAidMat, ShopMat]" />
+            <Output Name="Facilities" />
+          </Node>
+        </SubGraph>
+      </Node>
+
+      <!-- 6. Generate Press Box -->
+      <Node Type="PCGBox" Name="PressBoxArea">
+        <Input Name="Center" Value="0, PitchWidth/2 + StandDepth + ConcourseWidth * ConcourseLevels, StandHeight + 5" />
+        <Input Name="Extent" Value="PressBoxLength/2, 5, 3" />
+        <Output Name="PressBoxBounds" />
+      </Node>
+
+      <Node Type="PCGStaticMeshSpawner" Name="PressBoxSpawner">
+        <Input Name="Points" Value="PressBoxBounds" />
+        <Input Name="Mesh" Value="PressBoxMesh" />
+        <Input Name="Material" Value="GlassMaterial" />
+        <Output Name="PressBox" />
+      </Node>
+
+      <!-- 7. Generate Video Boards -->
+      <Node Type="PCGRepeat" Name="VideoBoardRepeat" Count="VideoBoardCount">
+        <SubGraph Name="VideoBoardGenerator">
+          <Node Type="PCGPlane" Name="VideoBoardPlane">
+            <Input Name="Size" Value="VideoBoardSize" />
+            <Input Name="Location" Value="VideoBoardLocation" />
+            <Output Name="VideoBoardMesh" />
+          </Node>
+
+          <Node Type="PCGMaterial" Name="VideoBoardMaterial">
+            <Input Name="Mesh" Value="VideoBoardMesh" />
+            <Input Name="Material" Value="VideoBoardScreenMaterial" />
+            <Output Name="VideoBoard" />
+          </Node>
+        </SubGraph>
+      </Node>
+
+      <!-- 8. Generate Parking -->
+      <Node Type="PCGBranch" Name="ParkingBranch" Condition="ParkingCapacity > 0">
+        <True>
+          <Node Type="PCGRepeat" Name="ParkingLevelRepeat" Count="ParkingLevels">
+            <SubGraph Name="ParkingGenerator">
+              <Node Type="PCGGrid" Name="ParkingGrid">
+                <Input Name="CellSize" Value="5.0, 2.5, LevelHeight" />
+                <Input Name="GridSize" Value="ParkingGridX, ParkingGridY, 1" />
+                <Output Name="ParkingSpots" />
+              </Node>
+
+              <Node Type="PCGStaticMeshSpawner" Name="ParkingLineSpawner">
+                <Input Name="Points" Value="ParkingSpotLines" />
+                <Input Name="Mesh" Value="ParkingLineMesh" />
+                <Input Name="Material" Value="ParkingLineMaterial" />
+                <Output Name="ParkingLines" />
+              </Node>
+            </SubGraph>
+          </Node>
+
+          <Node Type="PCGStaticMeshSpawner" Name="EntranceGateSpawner">
+            <Input Name="Points" Value="EntranceLocations" />
+            <Input Name="Mesh" Value="EntranceGateMesh" />
+            <Input Name="Material" Value="PrimaryMaterial" />
+            <Output Name="EntranceGates" />
+          </Node>
+        </True>
+      </Node>
+
+      <!-- 9. Generate Pitch Surface -->
+      <Node Type="PCGStaticMeshSpawner" Name="PitchSurfaceSpawner">
+        <Input Name="Points" Value="PitchArea" />
+        <Input Name="Mesh" Value="PitchSurfaceTile" />
+        <Input Name="Material" Value="GrassMaterial" />
+        <Input Name="Scale" Value="PitchLength, PitchWidth, 1" />
+        <Output Name="PitchSurface" />
+      </Node>
+
+      <!-- 10. Generate Goals -->
+      <Node Type="PCGRepeat" Name="GoalRepeat" Count="2">
+        <SubGraph Name="GoalGenerator">
+          <Node Type="PCGStaticMeshSpawner" Name="GoalPostSpawner">
+            <Input Name="Points" Value="GoalLocations" />
+            <Input Name="Mesh" Value="GoalFrameMesh" />
+            <Input Name="Material" Value="GoalPostMaterial" />
+            <Output Name="GoalFrame" />
+          </Node>
+
+          <Node Type="PCGStaticMeshSpawner" Name="GoalNetSpawner">
+            <Input Name="Points" Value="GoalNetArea" />
+            <Input Name="Mesh" Value="GoalNetMesh" />
+            <Input Name="Material" Value="GoalNetMaterial" />
+            <Output Name="GoalNet" />
+          </Node>
+        </SubGraph>
+      </Node>
+
+      <!-- 11. Generate Corner Flags -->
+      <Node Type="PCGStaticMeshSpawner" Name="CornerFlagSpawner">
+        <Input Name="Points" Value="CornerLocations" />
+        <Input Name="Mesh" Value="CornerFlagMesh" />
+        <Input Name="Material" Value="CornerFlagMaterial" />
+        <Output Name="CornerFlags" />
+      </Node>
+
+      <!-- Output Collection -->
+      <Node Type="PCGCollect" Name="CollectAll">
+        <Inputs>
+          <Input Name="Stands" />
+          <Input Name="Roof" />
+          <Input Name="CornerTowers" />
+          <Input Name="Concourse" />
+          <Input Name="PressBox" />
+          <Input Name="VideoBoards" />
+          <Input Name="Parking" />
+          <Input Name="EntranceGates" />
+          <Input Name="PitchSurface" />
+          <Input Name="Goals" />
+          <Input Name="CornerFlags" />
+          <Input Name="LightingTowers" />
+        </Inputs>
+        <Output Name="Stadium" />
+      </Node>
+    </Nodes>
+
+    <Outputs>
+      <Output Name="Stadium" Type="PCGComponent" />
+      <Output Name="PitchBounds" Type="Bounds" />
+      <Output Name="SeatLocations" Type="PointArray" />
+      <Output Name="CrowdSpawnPoints" Type="PointArray" />
+      <Output Name="CameraPositions" Type="PointArray" />
+    </Outputs>
+  </Graph>
+
+  <!-- ============================================================
+       GRASS GENERATION GRAPH
+       ============================================================ -->
+  <Graph Name="PCG_GrassGenerator" Description="Procedural grass placement on pitch">
+    <Description>Generates realistic grass blades with variation, wear patterns, and LODs</Description>
+
+    <Parameters>
+      <Parameter Name="PitchArea" Type="Bounds" />
+      <Parameter Name="GrassDensity" Type="Float" Default="50000" Min="10000" Max="200000" Description="Blades per m²" />
+      <Parameter Name="BladeHeight" Type="Float" Default="0.025" Min="0.015" Max="0.05" Description="Meters" />
+      <Parameter Name="BladeWidth" Type="Float" Default="0.002" Min="0.001" Max="0.005" Description="Meters" />
+      <Parameter Name="HeightVariation" Type="Float" Default="0.3" Min="0.0" Max="0.5" />
+      <Parameter Name="WidthVariation" Type="Float" Default="0.2" Min="0.0" Max="0.5" />
+      <Parameter Name="BendAngle" Type="Float" Default="15.0" Min="0.0" Max="45.0" Description="Degrees" />
+      <Parameter Name="BendDirectionVariation" Type="Float" Default="30.0" Min="0.0" Max="90.0" />
+      <Parameter Name="ColorVariation" Type="Float" Default="0.1" Min="0.0" Max="0.3" />
+      <Parameter Name="WearMap" Type="Texture2D" Default="None" Description="Wear pattern from matches" />
+      <Parameter Name="WearInfluence" Type="Float" Default="0.5" Min="0.0" Max="1.0" />
+      <Parameter Name="LOD0Distance" Type="Float" Default="10.0" Min="5.0" Max="30.0" />
+      <Parameter Name="LOD1Distance" Type="Float" Default="25.0" Min="15.0" Max="50.0" />
+      <Parameter Name="LOD2Distance" Type="Float" Default="50.0" Min="30.0" Max="100.0" />
+      <Parameter Name="GrassMaterial" Type="Object" Default="/Game/Materials/Grass/M_Grass_Blade" />
+      <Parameter Name="FlowerDensity" Type="Float" Default="0.001" Min="0.0" Max="0.01" />
+      <Parameter Name="WeedDensity" Type="Float" Default="0.0005" Min="0.0" Max="0.005" />
+    </Parameters>
+
+    <Nodes>
+      <!-- 1. Base Grass Points -->
+      <Node Type="PCGPointsFromVolume" Name="GrassPoints">
+        <Input Name="Volume" Value="PitchArea" />
+        <Input Name="Density" Value="GrassDensity" />
+        <Input Name="Distribution" Value="PoissonDisk" />
+        <Input Name="MinDistance" Value="0.002" />
+        <Output Name="GrassPoints" />
+      </Node>
+
+      <!-- 2. Apply Wear Pattern -->
+      <Node Type="PCGAttributeFilter" Name="WearFilter" Condition="WearMap != None">
+        <Input Name="Points" Value="GrassPoints" />
+        <SubGraph>
+          <Node Type="PCGTextureSample" Name="SampleWearMap">
+            <Input Name="Texture" Value="WearMap" />
+            <Input Name="UV" Value="Point.Position.XY / PitchArea.Size" />
+            <Input Name="Channel" Value="R" />
+            <Output Name="WearValue" />
+          </Node>
+
+          <Node Type="PCGMath" Name="WearDensityScale">
+            <Input Name="A" Value="1.0" />
+            <Input Name="B" Value="WearValue * WearInfluence" />
+            <Input Name="Operation" Value="Subtract" />
+            <Output Name="DensityScale" />
+          </Node>
+
+          <Node Type="PCGAttributeMath" Name="ApplyWearScale">
+            <Input Name="Attribute" Value="Density" />
+            <Input Name="Operation" Value="Multiply" />
+            <Input Name="Value" Value="DensityScale" />
+          </Node>
+        </SubGraph>
+        <Output Name="WornGrassPoints" />
+      </Node>
+
+      <!-- 3. Add Variation -->
+      <Node Type="PCGAttributeMath" Name="AddHeightVariation">
+        <Input Name="Attribute" Value="Scale.Z" />
+        <Input Name="Operation" Value="Multiply" />
+        <Input Name="Value" Value="1.0 + Random(-HeightVariation, HeightVariation)" />
+      </Node>
+
+      <Node Type="PCGAttributeMath" Name="AddWidthVariation">
+        <Input Name="Attribute" Value="Scale.X" />
+        <Input Name="Operation" Value="Multiply" />
+        <Input Name="Value" Value="1.0 + Random(-WidthVariation, WidthVariation)" />
+      </Node>
+
+      <Node Type="PCGAttributeMath" Name="AddColorVariation">
+        <Input Name="Attribute" Value="Color" />
+        <Input Name="Operation" Value="Multiply" />
+        <Input Name="Value" Value="1.0 + Random(-ColorVariation, ColorVariation)" />
+      </Node>
+
+      <Node Type="PCGAttributeMath" Name="AddBendVariation">
+        <Input Name="Attribute" Value="BendAngle" />
+        <Input Name="Operation" Value="Add" />
+        <Input Name="Value" Value="Random(-BendDirectionVariation, BendDirectionVariation)" />
+      </Node>
+
+      <!-- 4. LOD Separation -->
+      <Node Type="PCGSpatialFilter" Name="LODSplit">
+        <Input Name="Points" Value="VariedGrassPoints" />
+        <Input Name="CameraPosition" Value="Camera.Location" />
+        <Outputs>
+          <Output Name="LOD0" Condition="Distance < LOD0Distance" />
+          <Output Name="LOD1" Condition="Distance >= LOD0Distance AND Distance < LOD1Distance" />
+          <Output Name="LOD2" Condition="Distance >= LOD1Distance AND Distance < LOD2Distance" />
+          <Output Name="Culled" Condition="Distance >= LOD2Distance" />
+        </Outputs>
+      </Node>
+
+      <!-- 4a. LOD0 - Full detail -->
+      <Node Type="PCGStaticMeshSpawner" Name="LOD0Spawner">
+        <Input Name="Points" Value="LOD0" />
+        <Input Name="Mesh" Value="GrassBladeMesh_LOD0" />
+        <Input Name="Material" Value="GrassMaterial" />
+        <Input Name="Scale" Value="BladeHeight, BladeWidth, BladeHeight" />
+        <Output Name="LOD0Grass" />
+      </Node>
+
+      <!-- 4b. LOD1 - Simplified -->
+      <Node Type="PCGStaticMeshSpawner" Name="LOD1Spawner">
+        <Input Name="Points" Value="LOD1" />
+        <Input Name="Mesh" Value="GrassBladeMesh_LOD1" />
+        <Input Name="Material" Value="GrassMaterial" />
+        <Input Name="Density" Value="0.5" />
+        <Output Name="LOD1Grass" />
+      </Node>
+
+      <!-- 4c. LOD2 - Billboard/Cluster -->
+      <Node Type="PCGStaticMeshSpawner" Name="LOD2Spawner">
+        <Input Name="Points" Value="LOD2" />
+        <Input Name="Mesh" Value="GrassClusterMesh_LOD2" />
+        <Input Name="Material" Value="GrassMaterial" />
+        <Input Name="Density" Value="0.1" />
+        <Output Name="LOD2Grass" />
+      </Node>
+
+      <!-- 5. Flowers/Weeds (sparse) -->
+      <Node Type="PCGAttributeFilter" Name="FlowerFilter">
+        <Input Name="Points" Value="GrassPoints" />
+        <Input Name="Condition" Value="Random(0,1) < FlowerDensity" />
+        <Output Name="FlowerPoints" />
+      </Node>
+
+      <Node Type="PCGStaticMeshSpawner" Name="FlowerSpawner">
+        <Input Name="Points" Value="FlowerPoints" />
+        <Input Name="Mesh" Value="FlowerMesh" />
+        <Input Name="Material" Value="FlowerMaterial" />
+        <Output Name="Flowers" />
+      </Node>
+
+      <Node Type="PCGAttributeFilter" Name="WeedFilter">
+        <Input Name="Points" Value="GrassPoints" />
+        <Input Name="Condition" Value="Random(0,1) < WeedDensity" />
+        <Output Name="WeedPoints" />
+      </Node>
+
+      <Node Type="PCGStaticMeshSpawner" Name="WeedSpawner">
+        <Input Name="Points" Value="WeedPoints" />
+        <Input Name="Mesh" Value="WeedMesh" />
+        <Input Name="Material" Value="WeedMaterial" />
+        <Output Name="Weeds" />
+      </Node>
+
+      <!-- Output -->
+      <Node Type="PCGCollect" Name="CollectGrass">
+        <Inputs>
+          <Input Name="LOD0Grass" />
+          <Input Name="LOD1Grass" />
+          <Input Name="LOD2Grass" />
+          <Input Name="Flowers" />
+          <Input Name="Weeds" />
+        </Inputs>
+        <Output Name="Grass" />
+      </Node>
+    </Nodes>
+
+    <Outputs>
+      <Output Name="Grass" Type="PCGComponent" />
+      <Output Name="GrassBounds" Type="Bounds" />
+    </Outputs>
+  </Graph>
+
+  <!-- ============================================================
+       CROWD DISTRIBUTION GRAPH
+       ============================================================ -->
+  <Graph Name="PCG_CrowdDistribution" Description="Distributes crowd agents in stands with team affiliations">
+    <Description>Places crowd agents in seats with team colors, animations, and behaviors</Description>
+
+    <Parameters>
+      <Parameter Name="SeatLocations" Type="PointArray" />
+      <Parameter Name="HomeTeamColor" Type="Vector3" Default="0.0,0.2,0.8" />
+      <Parameter Name="AwayTeamColor" Type="Vector3" Default="0.8,0.1,0.1" />
+      <Parameter Name="HomeSupportRatio" Type="Float" Default="0.6" Min="0.0" Max="1.0" />
+      <Parameter Name="NeutralRatio" Type="Float" Default="0.1" Min="0.0" Max="0.5" />
+      <Parameter Name="AgentDensity" Type="Float" Default="0.95" Min="0.5" Max="1.0" />
+      <Parameter Name="AnimationVariation" Type="Float" Default="0.3" Min="0.0" Max="1.0" />
+      <Parameter Name="ChantSyncRadius" Type="Float" Default="200.0" Min="50.0" Max="500.0" />
+      <Parameter Name="AgentMesh_Home" Type="Object" Default="/Game/Assets/Characters/Crowd/CrowdAgent_Home" />
+      <Parameter Name="AgentMesh_Away" Type="Object" Default="/Game/Assets/Characters/Crowd/CrowdAgent_Away" />
+      <Parameter Name="AgentMesh_Neutral" Type="Object" Default="/Game/Assets/Characters/Crowd/CrowdAgent_Neutral" />
+      <Parameter Name="AgentMaterial_Home" Type="Object" Default="/Game/Materials/Characters/M_Crowd_Home" />
+      <Parameter Name="AgentMaterial_Away" Type="Object" Default="/Game/Materials/Characters/M_Crowd_Away" />
+      <Parameter Name="AgentMaterial_Neutral" Type="Object" Default="/Game/Materials/Characters/M_Crowd_Neutral" />
+    </Parameters>
+
+    <Nodes>
+      <!-- 1. Filter valid seat points -->
+      <Node Type="PCGAttributeFilter" Name="ValidSeats">
+        <Input Name="Points" Value="SeatLocations" />
+        <Input Name="Condition" Value="Random(0,1) < AgentDensity" />
+        <Output Name="OccupiedSeats" />
+      </Node>
+
+      <!-- 2. Assign Team Affiliation -->
+      <Node Type="PCGAttributeMath" Name="AssignAffiliation">
+        <Input Name="Points" Value="OccupiedSeats" />
+        <SubGraph>
+          <Node Type="PCGMath" Name="AffiliationRoll">
+            <Input Name="Value" Value="Random(0,1)" />
+            <Output Name="Roll" />
+          </Node>
+
+          <Node Type="PCGBranch" Name="AffiliationBranch">
+            <Condition>Roll < NeutralRatio</Condition>
+            <True>
+              <Output Affiliation="Neutral" />
+            </True>
+            <False>
+              <Node Type="PCGBranch" Name="HomeAwayBranch">
+                <Condition>Roll < (NeutralRatio + HomeSupportRatio * (1.0 - NeutralRatio))</Condition>
+                <True>
+                  <Output Affiliation="Home" />
+                </True>
+                <False>
+                  <Output Affiliation="Away" />
+                </False>
+              </Node>
+            </False>
+          </Node>
+        </SubGraph>
+        <Output Name="AffiliatedSeats" />
+      </Node>
+
+      <!-- 3. Spawn Agents by Affiliation -->
+      <Node Type="PCGAttributeFilter" Name="HomeFilter">
+        <Input Name="Points" Value="AffiliatedSeats" />
+        <Input Name="Condition" Value="Affiliation == Home" />
+        <Output Name="HomeSeats" />
+      </Node>
+
+      <Node Type="PCGStaticMeshSpawner" Name="HomeAgentSpawner">
+        <Input Name="Points" Value="HomeSeats" />
+        <Input Name="Mesh" Value="AgentMesh_Home" />
+        <Input Name="Material" Value="AgentMaterial_Home" />
+        <Input Name="Scale" Value="1.0 + Random(-AnimationVariation, AnimationVariation)" />
+        <Input Name="Rotation" Value="SeatRotation" />
+        <Output Name="HomeAgents" />
+      </Node>
+
+      <Node Type="PCGAttributeFilter" Name="AwayFilter">
+        <Input Name="Points" Value="AffiliatedSeats" />
+        <Input Name="Condition" Value="Affiliation == Away" />
+        <Output Name="AwaySeats" />
+      </Node>
+
+      <Node Type="PCGStaticMeshSpawner" Name="AwayAgentSpawner">
+        <Input Name="Points" Value="AwaySeats" />
+        <Input Name="Mesh" Value="AgentMesh_Away" />
+        <Input Name="Material" Value="AgentMaterial_Away" />
+        <Input Name="Scale" Value="1.0 + Random(-AnimationVariation, AnimationVariation)" />
+        <Input Name="Rotation" Value="SeatRotation" />
+        <Output Name="AwayAgents" />
+      </Node>
+
+      <Node Type="PCGAttributeFilter" Name="NeutralFilter">
+        <Input Name="Points" Value="AffiliatedSeats" />
+        <Input Name="Condition" Value="Affiliation == Neutral" />
+        <Output Name="NeutralSeats" />
+      </Node>
+
+      <Node Type="PCGStaticMeshSpawner" Name="NeutralAgentSpawner">
+        <Input Name="Points" Value="NeutralSeats" />
+        <Input Name="Mesh" Value="AgentMesh_Neutral" />
+        <Input Name="Material" Value="AgentMaterial_Neutral" />
+        <Input Name="Scale" Value="1.0 + Random(-AnimationVariation, AnimationVariation)" />
+        <Input Name="Rotation" Value="SeatRotation" />
+        <Output Name="NeutralAgents" />
+      </Node>
+
+      <!-- 4. Add Chant Sync Groups -->
+      <Node Type="PCGSpatialPartition" Name="ChantGroups">
+        <Input Name="Points" Value="AllAgents" />
+        <Input Name="CellSize" Value="ChantSyncRadius" />
+        <Output Name="GroupedAgents" />
+      </Node>
+
+      <Node Type="PCGAttributeMath" Name="AssignChantGroup">
+        <Input Name="Points" Value="GroupedAgents" />
+        <Input Name="Attribute" Value="ChantGroupID" />
+        <Input Name="Operation" Value="Set" />
+        <Input Name="Value" Value="PartitionIndex" />
+      </Node>
+
+      <!-- 5. Add Animation State -->
+      <Node Type="PCGAttributeMath" Name="InitialAnimationState">
+        <Input Name="Points" Value="GroupedAgents" />
+        <Input Name="Attribute" Value="AnimationState" />
+        <Input Name="Operation" Value="Set" />
+        <Input Name="Value" Value="Idle" />
+      </Node>
+
+      <Node Type="PCGAttributeMath" Name="AnimationOffset">
+        <Input Name="Points" Value="GroupedAgents" />
+        <Input Name="Attribute" Value="AnimationTimeOffset" />
+        <Input Name="Operation" Value="Set" />
+        <Input Name="Value" Value="Random(0, 10)" />
+      </Node>
+
+      <!-- Output -->
+      <Node Type="PCGCollect" Name="CollectCrowd">
+        <Inputs>
+          <Input Name="HomeAgents" />
+          <Input Name="AwayAgents" />
+          <Input Name="NeutralAgents" />
+        </Inputs>
+        <Output Name="Crowd" />
+      </Node>
+    </Nodes>
+
+    <Outputs>
+      <Output Name="Crowd" Type="PCGComponent" />
+      <Output Name="CrowdBounds" Type="Bounds" />
+      <Output Name="HomeAgentCount" Type="Integer" />
+      <Output Name="AwayAgentCount" Type="Integer" />
+      <Output Name="NeutralAgentCount" Type="Integer" />
+    </Outputs>
+  </Graph>
+
+  <!-- ============================================================
+       WEATHER EFFECTS GRAPH
+       ============================================================ -->
+  <Graph Name="PCG_WeatherEffects" Description="Dynamic weather particle placement">
+    <Description>Places rain drops, puddles, snow, fog volumes based on weather state</Description>
+
+    <Parameters>
+      <Parameter Name="StadiumBounds" Type="Bounds" />
+      <Parameter Name="RainIntensity" Type="Float" Default="0.0" Min="0.0" Max="1.0" />
+      <Parameter Name="DropSize" Type="Float" Default="0.001" Min="0.0005" Max="0.005" />
+      <Parameter Name="DropSpeed" Type="Float" Default="10.0" Min="5.0" Max="30.0" />
+      <Parameter Name="SplashDensity" Type="Float" Default="0.1" Min="0.0" Max="1.0" />
+      <Parameter Name="PuddleSize" Type="Float" Default="0.5" Min="0.1" Max="2.0" />
+      <Parameter Name="PuddleDepth" Type="Float" Default="0.02" Min="0.005" Max="0.1" />
+      <Parameter Name="FogDensity" Type="Float" Default="0.0003" Min="0.0" Max="0.01" />
+      <Parameter Name="SnowIntensity" Type="Float" Default="0.0" Min="0.0" Max="1.0" />
+      <Parameter Name="FlakeSize" Type="Float" Default="0.005" Min="0.001" Max="0.02" />
+      <Parameter Name="WindVelocity" Type="Vector3" Default="5, 1, 0" />
+    </Parameters>
+
+    <Nodes>
+      <!-- Rain Drops -->
+      <Node Type="PCGBranch" Name="RainBranch" Condition="RainIntensity > 0.01">
+        <True>
+          <Node Type="PCGPointsFromVolume" Name="RainPoints">
+            <Input Name="Volume" Value="StadiumBounds" />
+            <Input Name="Density" Value="RainIntensity * 10000" />
+            <Input Name="Distribution" Value="Uniform" />
+            <Output Name="RainDropPoints" />
+          </Node>
+
+          <Node Type="PCGAttributeMath" Name="RainVelocity">
+            <Input Name="Points" Value="RainDropPoints" />
+            <Input Name="Attribute" Value="Velocity" />
+            <Input Name="Operation" Value="Set" />
+            <Input Name="Value" Value="WindVelocity + (0, 0, -DropSpeed * 100)" />
+          </Node>
+
+          <Node Type="PCGStaticMeshSpawner" Name="RainDropSpawner">
+            <Input Name="Points" Value="RainDropPoints" />
+            <Input Name="Mesh" Value="RainDropMesh" />
+            <Input Name="Material" Value="RainDropMaterial" />
+            <Input Name="Scale" Value="DropSize" />
+            <Output Name="RainDrops" />
+          </Node>
+        </True>
+      </Node>
+
+      <!-- Ground Splashes -->
+      <Node Type="PCGBranch" Name="SplashBranch" Condition="RainIntensity > 0.01">
+        <True>
+          <Node Type="PCGPointsFromVolume" Name="SplashPoints">
+            <Input Name="Volume" Value="StadiumBounds.GroundPlane" />
+            <Input Name="Density" Value="RainIntensity * SplashDensity * 1000" />
+            <Output Name="SplashPoints" />
+          </Node>
+
+          <Node Type="PCGStaticMeshSpawner" Name="SplashSpawner">
+            <Input Name="Points" Value="SplashPoints" />
+            <Input Name="Mesh" Value="SplashMesh" />
+            <Input Name="Material" Value="SplashMaterial" />
+            <Output Name="Splashes" />
+          </Node>
+        </True>
+      </Node>
+
+      <!-- Puddles -->
+      <Node Type="PCGBranch" Name="PuddleBranch" Condition="RainIntensity > 0.1">
+        <True>
+          <Node Type="PCGPointsFromVolume" Name="PuddlePoints">
+            <Input Name="Volume" Value="StadiumBounds.GroundPlane" />
+            <Input Name="Density" Value="RainIntensity * 50" />
+            <Input Name="Distribution" Value="PoissonDisk" />
+            <Input Name="MinDistance" Value="2.0" />
+            <Output Name="PuddlePoints" />
+          </Node>
+
+          <Node Type="PCGStaticMeshSpawner" Name="PuddleSpawner">
+            <Input Name="Points" Value="PuddlePoints" />
+            <Input Name="Mesh" Value="PuddleMesh" />
+            <Input Name="Material" Value="PuddleMaterial" />
+            <Input Name="Scale" Value="PuddleSize, PuddleSize, PuddleDepth" />
+            <Output Name="Puddles" />
+          </Node>
+        </True>
+      </Node>
+
+      <!-- Fog Volumes -->
+      <Node Type="PCGBranch" Name="FogBranch" Condition="FogDensity > 0.0001">
+        <True>
+          <Node Type="PCGVolume" Name="FogVolume">
+            <Input Name="Bounds" Value="StadiumBounds" />
+            <Input Name="Density" Value="FogDensity" />
+            <Output Name="FogVolumeComponent" />
+          </Node>
+        </True>
+      </Node>
+
+      <!-- Snow -->
+      <Node Type="PCGBranch" Name="SnowBranch" Condition="SnowIntensity > 0.01">
+        <True>
+          <Node Type="PCGPointsFromVolume" Name="SnowPoints">
+            <Input Name="Volume" Value="StadiumBounds" />
+            <Input Name="Density" Value="SnowIntensity * 5000" />
+            <Output Name="SnowPoints" />
+          </Node>
+
+          <Node Type="PCGAttributeMath" Name="SnowVelocity">
+            <Input Name="Points" Value="SnowPoints" />
+            <Input Name="Attribute" Value="Velocity" />
+            <Input Name="Operation" Value="Set" />
+            <Input Name="Value" Value="WindVelocity + (0, 0, -200)" />
+          </Node>
+
+          <Node Type="PCGStaticMeshSpawner" Name="SnowSpawner">
+            <Input Name="Points" Value="SnowPoints" />
+            <Input Name="Mesh" Value="SnowflakeMesh" />
+            <Input Name="Material" Value="SnowflakeMaterial" />
+            <Input Name="Scale" Value="FlakeSize" />
+            <Output Name="Snow" />
+          </Node>
+        </True>
+      </Node>
+
+      <!-- Output -->
+      <Node Type="PCGCollect" Name="CollectWeather">
+        <Inputs>
+          <Input Name="RainDrops" Optional="True" />
+          <Input Name="Splashes" Optional="True" />
+          <Input Name="Puddles" Optional="True" />
+          <Input Name="FogVolumeComponent" Optional="True" />
+          <Input Name="Snow" Optional="True" />
+        </Inputs>
+        <Output Name="WeatherEffects" />
+      </Node>
+    </Nodes>
+
+    <Outputs>
+      <Output Name="WeatherEffects" Type="PCGComponent" />
+    </Outputs>
+  </Graph>
+</PCGGraphs>
+
+<!-- ============================================================
+     PCG METADATA SETTINGS
+     ============================================================ -->
+
+<PCGMetadata>
+  <Metadata Name="StadiumParameters" Type="Struct">
+    <Fields>
+      <Field Name="Name" Type="String" />
+      <Field Name="Capacity" Type="Int32" />
+      <Field Name="PitchDimensions" Type="Vector2D" />
+      <Field Name="StandConfiguration" Type="Struct" />
+      <Field Name="Materials" Type="Struct" />
+    </Fields>
+  </Metadata>
+
+  <Metadata Name="GrassParameters" Type="Struct">
+    <Fields>
+      <Field Name="BladeCount" Type="Int32" />
+      <Field Name="AverageHeight" Type="Float" />
+      <Field Name="WearLevel" Type="Float" />
+      <Field Name="LODDistances" Type="Array<Float>" />
+    </Fields>
+  </Metadata>
+
+  <Metadata Name="CrowdParameters" Type="Struct">
+    <Fields>
+      <Field Name="TotalAgents" Type="Int32" />
+      <Field Name="HomeAgents" Type="Int32" />
+      <Field Name="AwayAgents" Type="Int32" />
+      <Field Name="NeutralAgents" Type="Int32" />
+      <Field Name="ChantGroups" Type="Int32" />
+    </Fields>
+  </Metadata>
+
+  <Metadata Name="AgentMetadata" Type="Struct">
+    <Fields>
+      <Field Name="SeatIndex" Type="Int32" />
+      <Field Name="Row" Type="Int32" />
+      <Field Name="Section" Type="Int32" />
+      <Field Name="Affiliation" Type="Enum" Options="Home,Away,Neutral" />
+      <Field Name="ChantGroupID" Type="Int32" />
+      <Field Name="AnimationState" Type="Enum" Options="Idle,Cheer,Chant,Stand,Sit,Wave" />
+      <Field Name="AnimationTimeOffset" Type="Float" />
+      <Field Name="ExcitementLevel" Type="Float" />
+    </Fields>
+  </Metadata>
+</PCGMetadata>

@@ -1,0 +1,146 @@
+<!--
+  Pitch Field Material
+  This documents the material setup for the football pitch field
+  In UE5, create this as a Material asset using the Material Editor
+-->
+
+<Material Name="M_Pitch_Field" Domain="Surface" BlendMode="Opaque" ShadingModel="DefaultLit">
+  <Description>Main pitch field material with grass texture, line markings, and wear patterns</Description>
+
+  <Parameters>
+    <!-- Base Color - Grass Texture -->
+    <Parameter Name="GrassTexture" Type="Texture2D" Default="/Game/Textures/Pitch/T_Grass_Field" />
+    <Parameter Name="GrassTextureScale" Type="Scalar" Default="1.0" Min="0.1" Max="10.0" />
+    <Parameter Name="GrassColor" Type="Vector3" Default="0.2,0.6,0.15" />
+
+    <!-- Line Markings -->
+    <Parameter Name="LineTexture" Type="Texture2D" Default="/Game/Textures/Pitch/T_Pitch_Lines" />
+    <Parameter Name="LineColor" Type="Vector3" Default="1.0,1.0,1.0" />
+    <Parameter Name="LineOpacity" Type="Scalar" Default="1.0" />
+
+    <!-- Wear Patterns -->
+    <Parameter Name="WearTexture" Type="Texture2D" Default="/Game/Textures/Pitch/T_Wear_Mask" />
+    <Parameter Name="WearIntensity" Type="Scalar" Default="0.3" />
+    <Parameter Name="WearColor" Type="Vector3" Default="0.15,0.4,0.1" />
+
+    <!-- Detail Normal -->
+    <Parameter Name="DetailNormal" Type="Texture2D" Default="/Game/Textures/Pitch/T_Grass_Normal" />
+    <Parameter Name="DetailNormalScale" Type="Scalar" Default="0.5" />
+
+    <!-- Subsurface Scattering for Grass -->
+    <Parameter Name="SubsurfaceColor" Type="Vector3" Default="0.1,0.3,0.05" />
+    <Parameter Name="SubsurfaceAmount" Type="Scalar" Default="0.1" />
+
+    <!-- Roughness -->
+    <Parameter Name="BaseRoughness" Type="Scalar" Default="0.8" />
+    <Parameter Name="WearRoughness" Type="Scalar" Default="0.9" />
+
+    <!-- Metallic (should be 0 for grass) -->
+    <Parameter Name="Metallic" Type="Scalar" Default="0.0" />
+
+    <!-- Specular -->
+    <Parameter Name="Specular" Type="Scalar" Default="0.3" />
+
+    <!-- Tessellation -->
+    <Parameter Name="TessellationMultiplier" Type="Scalar" Default="1.0" />
+    <Parameter Name="bEnableTessellation" Type="Boolean" Default="False" />
+
+    <!-- Wind -->
+    <Parameter Name="WindStrength" Type="Scalar" Default="0.5" />
+    <Parameter Name="WindSpeed" Type="Scalar" Default="1.0" />
+  </Parameters>
+
+  <Nodes>
+    <!-- Base Color -->
+    <Node Type="TextureSample" Name="GrassTextureSample" Texture="GrassTexture" UVScale="GrassTextureScale" />
+    <Node Type="TextureSample" Name="LineTextureSample" Texture="LineTexture" />
+    <Node Type="TextureSample" Name="WearTextureSample" Texture="WearTexture" />
+    <Node Type="VectorParameter" Name="GrassColorParam" Value="GrassColor" />
+    <Node Type="VectorParameter" Name="LineColorParam" Value="LineColor" />
+    <Node Type="VectorParameter" Name="WearColorParam" Value="WearColor" />
+
+    <!-- Blend Grass and Lines -->
+    <Node Type="LinearInterpolate" Name="GrassLineBlend">
+      <Input A="GrassTextureSample * GrassColorParam" />
+      <Input B="LineColorParam" />
+      <Input Alpha="LineTextureSample.R * LineOpacity" />
+    </Node>
+
+    <!-- Apply Wear -->
+    <Node Type="LinearInterpolate" Name="WearBlend">
+      <Input A="GrassLineBlend" />
+      <Input B="WearColorParam" />
+      <Input Alpha="WearTextureSample.R * WearIntensity" />
+    </Node>
+
+    <!-- Normal Map -->
+    <Node Type="TextureSample" Name="NormalSample" Texture="DetailNormal" UVScale="GrassTextureScale" />
+    <Node Type="NormalFromHeightmap" Name="NormalFromHeight">
+      <Input Height="GrassTextureSample.G" Scale="DetailNormalScale" />
+    </Node>
+    <Node Type="BlendNormal" Name="FinalNormal">
+      <Input Base="NormalSample" />
+      <Input Blend="NormalFromHeight" />
+    </Node>
+
+    <!-- Roughness -->
+    <Node Type="ScalarParameter" Name="BaseRoughnessParam" Value="BaseRoughness" />
+    <Node Type="ScalarParameter" Name="WearRoughnessParam" Value="WearRoughness" />
+    <Node Type="LinearInterpolate" Name="RoughnessBlend">
+      <Input A="BaseRoughnessParam" />
+      <Input B="WearRoughnessParam" />
+      <Input Alpha="WearTextureSample.R" />
+    </Node>
+
+    <!-- Wind Animation (World Position Offset) -->
+    <Node Type="WorldPositionOffset" Name="WindWPO">
+      <Code>
+        float3 WindDirection = normalize(float3(1.0, 0.2, 0.0));
+        float WindTime = Time * WindSpeed;
+        float Wave = sin(WorldPosition.x * 0.01 + WindTime) * 0.5 +
+                     sin(WorldPosition.y * 0.01 + WindTime * 1.3) * 0.3;
+        return WindDirection * Wave * WindStrength * VertexNormal.z;
+      </Code>
+    </Node>
+
+    <!-- Tessellation (if enabled) -->
+    <Branch Condition="bEnableTessellation">
+      <True>
+        <Node Type="Tessellation" Name="Tessellation">
+          <Input WorldPositionOffset="WindWPO" />
+          <Input TessellationMultiplier="TessellationMultiplier" />
+        </Node>
+      </True>
+    </Branch>
+
+    <!-- Subsurface Profile -->
+    <Node Type="SubsurfaceProfile" Name="GrassSubsurface">
+      <Input Color="SubsurfaceColor" Amount="SubsurfaceAmount" />
+    </Node>
+
+    <!-- Output -->
+    <Output BaseColor="WearBlend" />
+    <Output Normal="FinalNormal" />
+    <Output Roughness="RoughnessBlend" />
+    <Output Metallic="Metallic" />
+    <Output Specular="Specular" />
+    <Output SubsurfaceColor="SubsurfaceColor" SubsurfaceAmount="SubsurfaceAmount" />
+    <Output WorldPositionOffset="WindWPO" />
+  </Nodes>
+
+  <UsageFlags>
+    <Flag Name="UsedWithStaticLighting" Value="True" />
+    <Flag Name="UsedWithSkeletalMesh" Value="False" />
+    <Flag Name="UsedWithParticleSprites" Value="False" />
+    <Flag Name="UsedWithBeamTrails" Value="False" />
+    <Flag Name="UsedWithNiagaraSprites" Value="False" />
+    <Flag Name="UsedWithNiagaraRibbons" Value="False" />
+    <Flag Name="UsedWithNiagaraMeshParticles" Value="False" />
+    <Flag Name="UsedWithGeometryCache" Value="False" />
+    <Flag Name="UsedWithClothing" Value="False" />
+    <Flag Name="UsedWithWater" Value="False" />
+    <Flag Name="UsedWithHairStrands" Value="False" />
+    <Flag Name="UsedWithLidar" Value="False" />
+    <Flag Name="UsedWithVirtualTexturing" Value="True" />
+  </UsageFlags>
+</Material>

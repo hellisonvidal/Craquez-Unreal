@@ -1,0 +1,729 @@
+<!--
+  Niagara Particle Systems for Craquez
+  Advanced effects using Niagara + Compute Shaders
+  In UE5, create these as Niagara Systems using the Niagara Editor
+-->
+
+<NiagaraSystems>
+  <!-- ============================================================
+       BALL TRAIL SYSTEM - Uses Compute Shader for GPU simulation
+       ============================================================ -->
+  <System Name="NS_BallTrail" Description="High-speed ball trail with motion blur">
+    <Emitter Name="BallTrailEmitter" Type="GPU">
+      <SpawnRate>0</SpawnRate> <!-- Spawned via event -->
+      <LocalSpace>False</LocalSpace>
+
+      <EmitterSettings>
+        <Property Name="MaxParticles">200</Property>
+        <Property Name="BoundsMode">Auto</Property>
+      </EmitterSettings>
+
+      <!-- Spawn Stage -->
+      <SpawnStage>
+        <Module Name="SpawnBurstInstantaneous">
+          <Property Name="SpawnCount">1</Property>
+        </Module>
+        <Module Name="InitializeParticle">
+          <Property Name="Position">Emitter.Engine.Owner.Position</Property>
+          <Property Name="Velocity">Emitter.Engine.Owner.Velocity</Property>
+          <Property Name="Lifetime">0.5</Property>
+          <Property Name="Mass">1.0</Property>
+          <Property Name="SpriteSize">10.0</Property>
+          <Property Name="Color">1.0, 1.0, 1.0, 1.0</Property>
+          <Property Name="Rotation">0.0</Property>
+          <Property Name="SubImageIndex">0</Property>
+        </Module>
+      </SpawnStage>
+
+      <!-- Update Stage - Compute Shader -->
+      <UpdateStage>
+        <Module Name="ComputeShaderScript">
+          <Property Name="ShaderPath">/Game/Shaders/Compute/BallTrailCS</Property>
+          <Property Name="ThreadGroupSize">64</Property>
+          <Inputs>
+            <Input Name="DeltaTime" Type="Float" Value="Engine.DeltaTime" />
+            <Input Name="BallVelocity" Type="Vector3" Value="Emitter.Engine.Owner.Velocity" />
+            <Input Name="BallSpin" Type="Vector3" Value="Emitter.Engine.Owner.AngularVelocity" />
+            <Input Name="TrailIntensity" Type="Float" Value="Emitter.Engine.Owner.Velocity.Length / 3000.0" />
+            <Input Name="WindVelocity" Type="Vector3" Value="Engine.WindVelocity" />
+          </Inputs>
+        </Module>
+
+        <Module Name="Drag">
+          <Property Name="DragCoefficient">0.1</Property>
+        </Module>
+
+        <Module Name="CurlNoiseForce">
+          <Property Name="Strength">50.0</Property>
+          <Property Name="Frequency">0.5</Property>
+          <Property Name="Scale">100.0</Property>
+        </Module>
+      </UpdateStage>
+
+      <!-- Render Stage -->
+      <RenderStage>
+        <Module Name="SpriteRenderer">
+          <Property Name="Material">/Game/Materials/Effects/M_BallTrail</Property>
+          <Property Name="Facing">Velocity</Property>
+          <Property Name="Alignment">Velocity</Property>
+          <Property Name="UVMode">Stretched</Property>
+          <Property Name="StretchFactor">2.0</Property>
+          <Property Name="SubImageSize">1.0, 1.0</Property>
+          <Property Name="PivotOffset">0.5, 0.5</Property>
+        </Module>
+      </RenderStage>
+    </Emitter>
+  </System>
+
+  <!-- ============================================================
+       BALL SPIN VISUALIZATION - Magnus effect visualization
+       ============================================================ -->
+  <System Name="NS_BallSpin" Description="Visualizes ball spin with rotating particles">
+    <Emitter Name="SpinEmitter" Type="GPU">
+      <SpawnRate>0</SpawnRate>
+
+      <SpawnStage>
+        <Module Name="InitializeParticle">
+          <Property Name="Lifetime">9999.0</Property>
+          <Property Name="LocalOffset">0,0,0</Property>
+        </Module>
+      </SpawnStage>
+
+      <UpdateStage>
+        <Module Name="ComputeShaderScript">
+          <Property Name="ShaderPath">/Game/Shaders/Compute/BallSpinCS</Property>
+          <Inputs>
+            <Input Name="BallPosition" Type="Vector3" Value="Emitter.Engine.Owner.Position" />
+            <Input Name="BallSpin" Type="Vector3" Value="Emitter.Engine.Owner.AngularVelocity" />
+            <Input Name="SpinAxis" Type="Vector3" Value="Emitter.Engine.Owner.AngularVelocity.Normalized" />
+            <Input Name="SpinRate" Type="Float" Value="Emitter.Engine.Owner.AngularVelocity.Length" />
+            <Input Name="MaxSpinRate" Type="Float" Value="50.0" />
+          </Inputs>
+        </Module>
+
+        <!-- Orbit particles around ball -->
+        <Module Name="Orbit">
+          <Property Name="Center">Emitter.Engine.Owner.Position</Property>
+          <Property Name="OrbitRadius">15.0</Property>
+          <Property Name="OrbitFrequency">Emitter.Engine.Owner.AngularVelocity.Length * 0.1</Property>
+          <Property Name="OrbitPhase">0.0</Property>
+        </Module>
+      </UpdateStage>
+
+      <RenderStage>
+        <Module Name="RibbonRenderer">
+          <Property Name="Material">/Game/Materials/Effects/M_SpinRibbon</Property>
+          <Property Name="RibbonWidth">2.0</Property>
+          <Property Name="TessellationFactor">4</Property>
+          <Property Name="RibbonUVMode">Stretched</Property>
+        </Module>
+      </RenderStage>
+    </Emitter>
+  </System>
+
+  <!-- ============================================================
+       IMPACT EFFECTS - Ball collision with surface/player
+       ============================================================ -->
+  <System Name="NS_BallImpact" Description="Impact effects for ball collisions">
+    <Emitter Name="ImpactBurst" Type="GPU">
+      <SpawnStage>
+        <Module Name="SpawnBurstInstantaneous">
+          <Property Name="SpawnCount">50</Property>
+        </Module>
+        <Module Name="InitializeParticle">
+          <Property Name="Position">Emitter.Engine.Owner.CollisionPoint</Property>
+          <Property Name="Velocity">RandomCone(Emitter.Engine.Owner.CollisionNormal, 45.0) * 500.0</Property>
+          <Property Name="Lifetime">Random(0.2, 0.5)</Property>
+          <Property Name="SpriteSize">Random(5.0, 15.0)</Property>
+          <Property Name="Color">1.0, 1.0, 1.0, 1.0</Property>
+          <Property Name="Rotation">Random(0, 360)</Property>
+        </Module>
+      </SpawnStage>
+
+      <UpdateStage>
+        <Module Name="GravityForce">
+          <Property Name="Gravity">0, 0, -980</Property>
+        </Module>
+        <Module Name="Drag">
+          <Property Name="DragCoefficient">0.5</Property>
+        </Module>
+        <Module Name="Collision">
+          <Property Name="Restitution">0.3</Property>
+          <Property Name="Friction">0.5</Property>
+        </Module>
+      </UpdateStage>
+
+      <RenderStage>
+        <Module Name="MeshRenderer">
+          <Property Name="Mesh">/Game/Assets/Particles/Spark_Mesh</Property>
+          <Property Name="Material">/Game/Materials/Effects/M_ImpactSpark</Property>
+          <Property Name="VelocityAlignment">True</Property>
+        </Module>
+      </RenderStage>
+    </Emitter>
+
+    <Emitter Name="ImpactDust" Type="GPU">
+      <SpawnStage>
+        <Module Name="SpawnBurstInstantaneous">
+          <Property Name="SpawnCount">30</Property>
+        </Module>
+        <Module Name="InitializeParticle">
+          <Property Name="Position">Emitter.Engine.Owner.CollisionPoint</Property>
+          <Property Name="Velocity">RandomCone(Emitter.Engine.Owner.CollisionNormal, 30.0) * 200.0</Property>
+          <Property Name="Lifetime">Random(0.5, 1.5)</Property>
+          <Property Name="SpriteSize">Random(20.0, 50.0)</Property>
+          <Property Name="Color">0.8, 0.7, 0.6, 0.5</Property>
+        </Module>
+      </SpawnStage>
+
+      <UpdateStage>
+        <Module Name="GravityForce">
+          <Property Name="Gravity">0, 0, -980</Property>
+        </Module>
+        <Module Name="Drag">
+          <Property Name="DragCoefficient">1.0</Property>
+        </Module>
+      </UpdateStage>
+
+      <RenderStage>
+        <Module Name="SpriteRenderer">
+          <Property Name="Material">/Game/Materials/Effects/M_DustPuff</Property>
+          <Property Name="Facing">Camera</Property>
+        </Module>
+      </RenderStage>
+    </Emitter>
+
+    <Emitter Name="DeformationWave" Type="GPU">
+      <SpawnStage>
+        <Module Name="SpawnBurstInstantaneous">
+          <Property Name="SpawnCount">1</Property>
+        </Module>
+        <Module Name="InitializeParticle">
+          <Property Name="Position">Emitter.Engine.Owner.CollisionPoint</Property>
+          <Property Name="Lifetime">0.3</Property>
+          <Property Name="SpriteSize">0.0</Property>
+        </Module>
+      </SpawnStage>
+
+      <UpdateStage>
+        <Module Name="ComputeShaderScript">
+          <Property Name="ShaderPath">/Game/Shaders/Compute/ImpactWaveCS</Property>
+          <Inputs>
+            <Input Name="ImpactPoint" Type="Vector3" Value="Emitter.Engine.Owner.CollisionPoint" />
+            <Input Name="ImpactNormal" Type="Vector3" Value="Emitter.Engine.Owner.CollisionNormal" />
+            <Input Name="ImpactStrength" Type="Float" Value="Emitter.Engine.Owner.CollisionStrength" />
+            <Input Name="WaveSpeed" Type="Float" Value="1000.0" />
+            <Input Name="MaxRadius" Type="Float" Value="200.0" />
+          </Inputs>
+        </Module>
+      </UpdateStage>
+
+      <RenderStage>
+        <Module Name="SpriteRenderer">
+          <Property Name="Material">/Game/Materials/Effects/M_ImpactWave</Property>
+          <Property Name="Facing">Up</Property>
+        </Module>
+      </RenderStage>
+    </Emitter>
+  </System>
+
+  <!-- ============================================================
+       GOAL CELEBRATION - Confetti, particles
+       ============================================================ -->
+  <System Name="NS_GoalCelebration" Description="Goal celebration effects">
+    <Emitter Name="Confetti" Type="GPU">
+      <SpawnRate>500</SpawnRate>
+
+      <SpawnStage>
+        <Module Name="InitializeParticle">
+          <Property Name="Position">Box(-5000, -3000, 2000, 5000, 3000, 5000)</Property>
+          <Property Name="Velocity">0, 0, Random(-500, -1000)</Property>
+          <Property Name="Lifetime">Random(3.0, 5.0)</Property>
+          <Property Name="SpriteSize">Random(5.0, 10.0)</Property>
+          <Property Name="Color">RandomColor(TeamColors)</Property>
+          <Property Name="Rotation">Random(0, 360)</Property>
+        </Module>
+      </SpawnStage>
+
+      <UpdateStage>
+        <Module Name="GravityForce">
+          <Property Name="Gravity">0, 0, -980</Property>
+        </Module>
+        <Module Name="TurbulenceForce">
+          <Property Name="Strength">200.0</Property>
+          <Property Name="Frequency">0.1</Property>
+        </Module>
+        <Module Name="Spin">
+          <Property Name="RotationRate">Random(-360, 360)</Property>
+        </Module>
+      </UpdateStage>
+
+      <RenderStage>
+        <Module Name="MeshRenderer">
+          <Property Name="Mesh">/Game/Assets/Particles/Confetti_Mesh</Property>
+          <Property Name="Material">/Game/Materials/Effects/M_Confetti</Property>
+        </Module>
+      </RenderStage>
+    </Emitter>
+
+    <Emitter Name="Fireworks" Type="CPU">
+      <SpawnRate>5</SpawnRate>
+
+      <SpawnStage>
+        <Module Name="InitializeParticle">
+          <Property Name="Position">0, 0, 1000</Property>
+          <Property Name="Velocity">RandomCone(0,0,1, 30.0) * 1000.0</Property>
+          <Property Name="Lifetime">2.0</Property>
+        </Module>
+      </SpawnStage>
+
+      <UpdateStage>
+        <Module Name="GravityForce">
+          <Property Name="Gravity">0, 0, -980</Property>
+        </Module>
+      </UpdateStage>
+
+      <EventStage>
+        <Module Name="DeathEvent">
+          <EventName>FireworkExplode</EventName>
+        </Module>
+      </EventStage>
+
+      <RenderStage>
+        <Module Name="SpriteRenderer">
+          <Property Name="Material">/Game/Materials/Effects/M_FireworkRocket</Property>
+        </Module>
+      </RenderStage>
+    </Emitter>
+
+    <Emitter Name="FireworkExplosion" Type="GPU">
+      <SpawnStage>
+        <Module Name="EventReceiverSpawn">
+          <EventName>FireworkExplode</EventName>
+          <SpawnCount>100</SpawnCount>
+        </Module>
+        <Module Name="InitializeParticle">
+          <Property Name="Position">Event.Position</Property>
+          <Property Name="Velocity">RandomSphere() * 800.0</Property>
+          <Property Name="Lifetime">Random(1.0, 2.0)</Property>
+          <Property Name="SpriteSize">Random(10.0, 30.0)</Property>
+          <Property Name="Color">RandomColor(Gold/TeamColors)</Property>
+        </Module>
+      </SpawnStage>
+
+      <UpdateStage>
+        <Module Name="GravityForce">
+          <Property Name="Gravity">0, 0, -980</Property>
+        </Module>
+        <Module Name="Drag">
+          <Property Name="DragCoefficient">0.1</Property>
+        </Module>
+      </UpdateStage>
+
+      <RenderStage>
+        <Module Name="SpriteRenderer">
+          <Property Name="Material">/Game/Materials/Effects/M_FireworkParticle</Property>
+        </Module>
+      </RenderStage>
+    </Emitter>
+  </System>
+
+  <!-- ============================================================
+       CROWD SYSTEM - Niagara + Compute for 50k+ agents
+       ============================================================ -->
+  <System Name="NS_Crowd" Description="Massive crowd simulation with Compute Shaders">
+    <Emitter Name="CrowdAgents" Type="GPU">
+      <SpawnStage>
+        <Module Name="GridSpawn">
+          <Property Name="GridSize">200, 100, 1</Property>
+          <Property Name="Spacing">100.0</Property>
+          <Property Name="Offset">-10000, -5000, 0</Property>
+        </Module>
+        <Module Name="InitializeParticle">
+          <Property Name="Lifetime">9999.0</Property>
+          <Property Name="SpriteSize">180.0</Property>
+          <Property Name="Color">1.0, 1.0, 1.0, 1.0</Property>
+          <Property Name="AgentID">Index</Property>
+          <Property Name="SeatRow">Floor(Index / 200.0)</Property>
+          <Property Name="SeatCol">Index % 200</Property>
+          <Property Name="TeamAffiliation">Random(0, 1) > 0.5 ? Home : Away</Property>
+          <Property Name="ExcitementLevel">Random(0.3, 1.0)</Property>
+        </Module>
+      </SpawnStage>
+
+      <UpdateStage>
+        <Module Name="ComputeShaderScript">
+          <Property Name="ShaderPath">/Game/Shaders/Compute/CrowdSimulationCS</Property>
+          <Property Name="ThreadGroupSize">256</Property>
+          <Inputs>
+            <Input Name="DeltaTime" Type="Float" Value="Engine.DeltaTime" />
+            <Input Name="BallPosition" Type="Vector3" Value="Engine.Ball.Position" />
+            <Input Name="BallVelocity" Type="Vector3" Value="Engine.Ball.Velocity" />
+            <Input Name="MatchState" Type="Int" Value="Engine.Match.State" />
+            <Input Name="HomeScore" Type="Int" Value="Engine.Match.HomeScore" />
+            <Input Name="AwayScore" Type="Int" Value="Engine.Match.AwayScore" />
+            <Input Name="TimeRemaining" Type="Float" Value="Engine.Match.TimeRemaining" />
+            <Input Name="StadiumBounds" Type="Vector4" Value="-5250, 5250, -3400, 3400" />
+            <Input Name="ChantTriggers" Type="Buffer" Value="Engine.Audio.ChantTriggers" />
+          </Inputs>
+        </Module>
+      </UpdateStage>
+
+      <RenderStage>
+        <Module Name="MeshRenderer">
+          <Property Name="Mesh">/Game/Assets/Characters/CrowdAgent_Mesh</Property>
+          <Property Name="Material">/Game/Materials/Characters/M_CrowdAgent</Property>
+          <Property Name="InstanceCount">20000</Property>
+          <Property Name="bUseGPUInstancing">True</Property>
+        </Module>
+      </RenderStage>
+    </Emitter>
+
+    <Emitter Name="CrowdChants" Type="CPU">
+      <SpawnStage>
+        <Module Name="EventReceiverSpawn">
+          <EventName>ChantTrigger</EventName>
+          <SpawnCount>1</SpawnCount>
+        </Module>
+      </SpawnStage>
+
+      <UpdateStage>
+        <Module Name="AudioOscillator">
+          <Property Name="Frequency">1.0</Property>
+          <Property Name="Amplitude">1.0</Property>
+        </Module>
+      </UpdateStage>
+
+      <EventStage>
+        <Module Name="AudioEvent">
+          <EventName>PlayChant</EventName>
+          <SoundWave>/Game/Audio/Chants/Chant_Home_1</SoundWave>
+          <Volume>1.0</Volume>
+        </Module>
+      </EventStage>
+    </Emitter>
+  </System>
+
+  <!-- ============================================================
+       GRASS/FIELD EFFECTS - Wind interaction, footprints
+       ============================================================ -->
+  <System Name="NS_GrassInteraction" Description="Grass bending from players/ball">
+    <Emitter Name="GrassBend" Type="GPU">
+      <SpawnRate>0</SpawnRate>
+
+      <SpawnStage>
+        <Module Name="EventReceiverSpawn">
+          <EventName>PlayerStep</EventName>
+          <SpawnCount>1</SpawnCount>
+        </Module>
+        <Module Name="InitializeParticle">
+          <Property Name="Position">Event.Position</Property>
+          <Property Name="Direction">Event.Direction</Property>
+          <Property Name="Force">Event.Force</Property>
+          <Property Name="Lifetime">1.0</Property>
+        </Module>
+      </SpawnStage>
+
+      <UpdateStage>
+        <Module Name="ComputeShaderScript">
+          <Property Name="ShaderPath">/Game/Shaders/Compute/GrassBendCS</Property>
+          <Inputs>
+            <Input Name="AffectedParticles" Type="Buffer" Value="Self.Particles" />
+            <Input Name="DeltaTime" Type="Float" Value="Engine.DeltaTime" />
+            <Input Name="RecoverySpeed" Type="Float" Value="2.0" />
+            <Input Name="MaxBendAngle" Type="Float" Value="45.0" />
+          </Inputs>
+        </Module>
+      </UpdateStage>
+
+      <RenderStage>
+        <Module Name="MaterialParameterCollection">
+          <Collection>/Game/Materials/MPC_GrassBend</Collection>
+        </Module>
+      </RenderStage>
+    </Emitter>
+  </System>
+
+  <!-- ============================================================
+       WEATHER SYSTEM - Rain, snow, fog
+       ============================================================ -->
+  <System Name="NS_Weather_Rain" Description="Rain with puddles and splashes">
+    <Emitter Name="RainDrops" Type="GPU">
+      <SpawnRate>10000</SpawnRate>
+
+      <SpawnStage>
+        <Module Name="BoxSpawn">
+          <Property Name="BoxSize">11000, 7000, 5000</Property>
+          <Property Name="BoxCenter">0, 0, 3000</Property>
+        </Module>
+        <Module Name="InitializeParticle">
+          <Property Name="Velocity">0, 0, Random(-2000, -3000)</Property>
+          <Property Name="Lifetime">Random(1.0, 2.0)</Property>
+          <Property Name="SpriteSize">Random(0.5, 1.5)</Property>
+          <Property Name="Color">0.7, 0.8, 1.0, 0.5</Property>
+          <Property Name="Rotation">0.0</Property>
+        </Module>
+      </SpawnStage>
+
+      <UpdateStage>
+        <Module Name="GravityForce">
+          <Property Name="Gravity">0, 0, -980</Property>
+        </Module>
+        <Module Name="WindForce">
+          <Property Name="WindVelocity">Engine.WindVelocity</Property>
+        </Module>
+      </UpdateStage>
+
+      <RenderStage>
+        <Module Name="RibbonRenderer">
+          <Property Name="Material">/Game/Materials/Effects/M_RainDrop</Property>
+          <Property Name="RibbonWidth">0.2</Property>
+        </Module>
+      </RenderStage>
+    </Emitter>
+
+    <Emitter Name="GroundSplashes" Type="GPU">
+      <SpawnRate>500</SpawnRate>
+
+      <SpawnStage>
+        <Module Name="InitializeParticle">
+          <Property Name="Position">RandomPointOnGround()</Property>
+          <Property Name="Velocity">RandomCone(0,0,1, 45.0) * 100.0</Property>
+          <Property Name="Lifetime">Random(0.1, 0.3)</Property>
+          <Property Name="SpriteSize">Random(5.0, 15.0)</Property>
+          <Property Name="Color">0.7, 0.8, 1.0, 0.8</Property>
+        </Module>
+      </SpawnStage>
+
+      <UpdateStage>
+        <Module Name="GravityForce">
+          <Property Name="Gravity">0, 0, -980</Property>
+        </Module>
+        <Module Name="Drag">
+          <Property Name="DragCoefficient">2.0</Property>
+        </Module>
+      </UpdateStage>
+
+      <RenderStage>
+        <Module Name="SpriteRenderer">
+          <Property Name="Material">/Game/Materials/Effects/M_Splash</Property>
+        </Module>
+      </RenderStage>
+    </Emitter>
+
+    <Emitter Name="Puddles" Type="GPU">
+      <SpawnStage>
+        <Module Name="GridSpawn">
+          <Property Name="GridSize">50, 30, 1</Property>
+          <Property Name="Spacing">200.0</Property>
+        </Module>
+        <Module Name="InitializeParticle">
+          <Property Name="Lifetime">9999.0</Property>
+          <Property Name="SpriteSize">50.0</Property>
+        </Module>
+      </SpawnStage>
+
+      <RenderStage>
+        <Module Name="SpriteRenderer">
+          <Property Name="Material">/Game/Materials/Effects/M_Puddle</Property>
+          <Property Name="Facing">Up</Property>
+        </Module>
+      </RenderStage>
+    </Emitter>
+  </System>
+</NiagaraSystems>
+
+<!-- ============================================================
+     COMPUTE SHADERS
+     ============================================================ -->
+
+<ComputeShaders>
+  <!-- Ball Trail Compute Shader -->
+  <Shader Name="BallTrailCS" Path="/Game/Shaders/Compute/BallTrailCS.usf">
+    <Description>GPU simulation of ball trail particles with motion blur</Description>
+    <ThreadGroupSize>64</ThreadGroupSize>
+    <Inputs>
+      <Buffer Name="Particles" Type="RWStructuredBuffer<FBallTrailParticle>" />
+      <Float Name="DeltaTime" />
+      <Vector3 Name="BallVelocity" />
+      <Vector3 Name="BallSpin" />
+      <Float Name="TrailIntensity" />
+      <Vector3 Name="WindVelocity" />
+    </Inputs>
+    <Logic>
+      // Update particle positions based on ball motion
+      // Apply wind, gravity, drag
+      // Fade based on distance from ball
+      // Generate motion vectors for blur
+    </Logic>
+  </Shader>
+
+  <!-- Ball Spin Compute Shader -->
+  <Shader Name="BallSpinCS" Path="/Game/Shaders/Compute/BallSpinCS.usf">
+    <Description>Visualizes Magnus effect with orbiting particles</Description>
+    <ThreadGroupSize>64</ThreadGroupSize>
+    <Inputs>
+      <Buffer Name="Particles" Type="RWStructuredBuffer<FSpinParticle>" />
+      <Vector3 Name="BallPosition" />
+      <Vector3 Name="BallSpin" />
+      <Vector3 Name="SpinAxis" />
+      <Float Name="SpinRate" />
+      <Float Name="MaxSpinRate" />
+    </Inputs>
+    <Logic>
+      // Orbit particles around ball based on spin axis/rate
+      // Color by spin direction (red/blue for side spin)
+      // Intensity proportional to spin rate
+    </Logic>
+  </Shader>
+
+  <!-- Impact Wave Compute Shader -->
+  <Shader Name="ImpactWaveCS" Path="/Game/Shaders/Compute/ImpactWaveCS.usf">
+    <Description>Expanding wave from ball impact point</Description>
+    <ThreadGroupSize>64</ThreadGroupSize>
+    <Inputs>
+      <Buffer Name="Particles" Type="RWStructuredBuffer<FImpactWaveParticle>" />
+      <Vector3 Name="ImpactPoint" />
+      <Vector3 Name="ImpactNormal" />
+      <Float Name="ImpactStrength" />
+      <Float Name="WaveSpeed" />
+      <Float Name="MaxRadius" />
+    </Inputs>
+    <Logic>
+      // Expand ring from impact point
+      // Deform surface normal in material
+      // Fade over time
+    </Logic>
+  </Shader>
+
+  <!-- Crowd Simulation Compute Shader -->
+  <Shader Name="CrowdSimulationCS" Path="/Game/Shaders/Compute/CrowdSimulationCS.usf">
+    <Description>Massive crowd animation with 50k+ agents</Description>
+    <ThreadGroupSize>256</ThreadGroupSize>
+    <Inputs>
+      <Buffer Name="Agents" Type="RWStructuredBuffer<FCrowdAgent>" />
+      <Float Name="DeltaTime" />
+      <Vector3 Name="BallPosition" />
+      <Vector3 Name="BallVelocity" />
+      <Int Name="MatchState" />
+      <Int Name="HomeScore" />
+      <Int Name="AwayScore" />
+      <Float Name="TimeRemaining" />
+      <Vector4 Name="StadiumBounds" />
+      <Buffer Name="ChantTriggers" Type="StructuredBuffer<FChantTrigger>" />
+    </Inputs>
+    <Logic>
+      // State machine per agent: Idle, Cheer, Chant, Stand, Sit, Wave
+      // Transitions based on match events (goal, near goal, foul, etc.)
+      // Synchronized chants across sections
+      // Mexican wave propagation
+      // Individual variation in timing/enthusiasm
+    </Logic>
+  </Shader>
+
+  <!-- Grass Bend Compute Shader -->
+  <Shader Name="GrassBendCS" Path="/Game/Shaders/Compute/GrassBendCS.usf">
+    <Description>Grass blade bending from player footsteps and ball</Description>
+    <ThreadGroupSize>64</ThreadGroupSize>
+    <Inputs>
+      <Buffer Name="GrassBlades" Type="RWStructuredBuffer<FGrassBlade>" />
+      <Float Name="DeltaTime" />
+      <Float Name="RecoverySpeed" />
+      <Float Name="MaxBendAngle" />
+    </Inputs>
+    <Logic>
+      // Spring-damper model for each blade
+      // Impulse from player position/velocity
+      // Wind coupling
+      // Recovery to upright
+    </Logic>
+  </Shader>
+
+  <!-- Uniform Cloth Compute Shader (for GPU cloth) -->
+  <Shader Name="UniformClothCS" Path="/Game/Shaders/Compute/UniformClothCS.usf">
+    <Description>GPU cloth simulation for uniforms (Chaos Cloth fallback)</Description>
+    <ThreadGroupSize>128</ThreadGroupSize>
+    <Inputs>
+      <Buffer Name="Particles" Type="RWStructuredBuffer<FClothParticle>" />
+      <Buffer Name="Constraints" Type="StructuredBuffer<FClothConstraint>" />
+      <Float Name="DeltaTime" />
+      <Vector3 Name="Gravity" />
+      <Vector3 Name="WindVelocity" />
+      <Float Name="BendingStiffness" />
+      <Float Name="StretchingStiffness" />
+      <Float Name="Damping" />
+      <Int Name="SolverIterations" />
+    </Inputs>
+    <Logic>
+      // Position-based dynamics (PBD) solver
+      // Distance constraints (stretching)
+      // Bending constraints
+      // Tether constraints (to body)
+      // Collision with body capsules
+      // Self-collision (optional)
+    </Logic>
+  </Shader>
+</ComputeShaders>
+
+<!-- ============================================================
+     MATERIAL PARAMETER COLLECTIONS
+     ============================================================ -->
+
+<MaterialParameterCollections>
+  <Collection Name="MPC_GameState">
+    <Parameters>
+      <Vector Name="BallPosition" Default="0,0,100" />
+      <Vector Name="BallVelocity" Default="0,0,0" />
+      <Float Name="MatchTime" Default="0.0" />
+      <Int Name="HomeScore" Default="0" />
+      <Int Name="AwayScore" Default="0" />
+      <Int Name="MatchPhase" Default="0" />
+      <Vector4 Name="StadiumBounds" Default="-5250,5250,-3400,3400" />
+    </Parameters>
+  </Collection>
+
+  <Collection Name="MPC_GrassBend">
+    <Parameters>
+      <Vector Name="BendCenter1" Default="0,0,0" />
+      <Float Name="BendRadius1" Default="0.0" />
+      <Vector Name("BendDirection1") Default="0,0,0" />
+      <Float Name="BendStrength1" Default="0.0" />
+      <Vector Name("BendCenter2") Default="0,0,0" />
+      <Float Name("BendRadius2" Default="0.0" />
+      <Vector Name("BendDirection2") Default="0,0,0" />
+      <Float Name("BendStrength2" Default="0.0" />
+      <Vector Name("BendCenter3") Default="0,0,0" />
+      <Float Name("BendRadius3" Default="0.0" />
+      <Vector Name("BendDirection3") Default="0,0,0" />
+      <Float Name("BendStrength3" Default="0.0" />
+      <Float Name("GlobalWindStrength") Default="0.5" />
+      <Vector Name("GlobalWindDirection") Default="1,0.2,0" />
+    </Parameters>
+  </Collection>
+
+  <Collection Name="MPC_Weather">
+    <Parameters>
+      <Float Name="RainIntensity" Default="0.0" />
+      <Float Name="PuddleAmount" Default="0.0" />
+      <Float Name="Wetness" Default="0.0" />
+      <Vector Name("WindDirection") Default="1,0.2,0" />
+      <Float Name("WindSpeed" Default="5.0" />
+      <Float Name="FogDensity" Default="0.0003" />
+      <Vector Name("FogColor") Default="180,190,210" />
+    </Parameters>
+  </Collection>
+
+  <Collection Name="MPC_TeamColors">
+    <Parameters>
+      <Vector Name="HomePrimary" Default="0.0,0.2,0.8" />
+      <Vector Name="HomeSecondary" Default="1.0,1.0,1.0" />
+      <Vector Name("HomeAccent" Default="1.0,0.8,0.0" />
+      <Vector Name("AwayPrimary" Default="0.8,0.1,0.1" />
+      <Vector Name("AwaySecondary" Default="1.0,0.9,0.2" />
+      <Vector Name("AwayAccent" Default="1.0,1.0,1.0" />
+      <Vector Name("GKHomePrimary" Default="0.0,0.6,0.3" />
+      <Vector Name("GKAwayPrimary" Default="1.0,0.5,0.0" />
+      <Vector Name("RefereeColor" Default="0.0,0.0,0.0" />
+    </Parameters>
+  </Collection>
+</MaterialParameterCollections>
