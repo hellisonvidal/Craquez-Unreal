@@ -13,7 +13,8 @@ class AFootballTeamManager;
 class UFootballTacticalComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnTeamPossessionChanged, EFootballTeamSide::Type, PossessingTeam);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnTeamGoalScored, EFootballTeamSide::Type, ScoringTeam, AFootballPlayerCharacter*, Scorer);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnTeamGoalScored, EFootballTeamSide::Type, ScoringTeam,
+                                             AFootballPlayerCharacter*, Scorer);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnTeamTacticChanged, FGameplayTag, TacticTag);
 
 /**
@@ -32,13 +33,14 @@ public:
 
     // Team Setup
     UFUNCTION(BlueprintCallable, Category = "Football|Team")
-    void InitializeTeam(EFootballTeamSide::Type InSide, const FString& TeamName, const FFootballTacticalInstructions& InTactics);
+    void InitializeTeam(EFootballTeamSide::Type InSide, const FString& TeamName,
+                        const FFootballTacticalInstructions& InTactics);
 
     UFUNCTION(BlueprintCallable, Category = "Football|Team")
     void SetTeamManager(AFootballTeamManager* InManager);
 
     UFUNCTION(BlueprintCallable, Category = "Football|Team")
-    void AddPlayer(AFootballPlayerCharacter* Player, EFootballPlayerRole::Type Role);
+    void AddPlayer(AFootballPlayerCharacter* Player, EFootballPlayerRole::Type InRole);
 
     UFUNCTION(BlueprintCallable, Category = "Football|Team")
     void RemovePlayer(AFootballPlayerCharacter* Player);
@@ -54,10 +56,10 @@ public:
 
     // Player Management
     UFUNCTION(BlueprintCallable, Category = "Football|Team")
-    AFootballPlayerCharacter* GetPlayerByRole(EFootballPlayerRole::Type Role) const;
+    AFootballPlayerCharacter* GetPlayerByRole(EFootballPlayerRole::Type InRole) const;
 
     UFUNCTION(BlueprintCallable, Category = "Football|Team")
-    TArray<AFootballPlayerCharacter*> GetPlayersByRole(EFootballPlayerRole::Type Role) const;
+    TArray<AFootballPlayerCharacter*> GetPlayersByRole(EFootballPlayerRole::Type InRole) const;
 
     UFUNCTION(BlueprintCallable, Category = "Football|Team")
     AFootballPlayerCharacter* GetClosestPlayerToBall() const;
@@ -141,12 +143,40 @@ public:
     UFUNCTION(BlueprintPure, Category = "Football|Team")
     int32 GetShotsOnTarget() const { return ShotsOnTarget; }
 
+    UFUNCTION(BlueprintPure, Category = "Football|Team")
+    UFootballTacticalComponent* GetTacticalComponent() const { return TacticalComponent; }
+
+    UFUNCTION(BlueprintPure, Category = "Football|Team")
+    AFootballTeamManager* GetTeamManager() const { return TeamManager; }
+
+    UFUNCTION(BlueprintPure, Category = "Football|Team")
+    int32 GetCurrentFormation() const { return CurrentFormation; }
+
+    const TMap<int32, TArray<FVector>>& GetFormationPositions() const { return FormationPositions; }
+
+    UFUNCTION(BlueprintPure, Category = "Football|Team")
+    float GetPossessionTime() const { return PossessionTime; }
+
+    UFUNCTION(BlueprintPure, Category = "Football|Team")
+    float GetPossessionPercent() const;
+
+    UFUNCTION(BlueprintPure, Category = "Football|Team")
+    UTexture2D* GetTeamCrest() const { return TeamCrest; }
+
+    UFUNCTION(BlueprintCallable, Category = "Football|Team")
+    FVector CalculateFormationPosition(EFootballPlayerRole::Type InRole) const;
+
+    void AddFoul() { FoulsCommitted++; }
+    void AddYellowCard() { YellowCards++; }
+    void AddRedCard() { RedCards++; }
+    void AddCorner() { Corners++; }
+
     // Events
     UPROPERTY(BlueprintAssignable, Category = "Football|Events")
     FOnTeamPossessionChanged OnPossessionChanged;
 
     UPROPERTY(BlueprintAssignable, Category = "Football|Events")
-    FOnTeamGoalScored OnGoalScored;
+    FOnTeamGoalScored OnTeamGoalScored;
 
     UPROPERTY(BlueprintAssignable, Category = "Football|Events")
     FOnTeamTacticChanged OnTacticChanged;
@@ -154,7 +184,7 @@ public:
 protected:
     // Team Identity
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Football|Team", meta = (AllowPrivateAccess = "true"))
-    EFootballTeamSide::Type TeamSide = EFootballTeamSide::Home;
+    TEnumAsByte<EFootballTeamSide::Type> TeamSide = EFootballTeamSide::Home;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Football|Team", meta = (AllowPrivateAccess = "true"))
     FString TeamName = TEXT("Team");
@@ -170,7 +200,7 @@ protected:
     TArray<TObjectPtr<AFootballPlayerCharacter>> Players;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Team", meta = (AllowPrivateAccess = "true"))
-    TMap<EFootballPlayerRole::Type, TObjectPtr<AFootballPlayerCharacter>> PlayerByRole;
+    TMap<TEnumAsByte<EFootballPlayerRole::Type>, TObjectPtr<AFootballPlayerCharacter>> PlayerByRole;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Team", meta = (AllowPrivateAccess = "true"))
     TObjectPtr<AFootballPlayerCharacter> Captain = nullptr;
@@ -232,7 +262,6 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Formation", meta = (AllowPrivateAccess = "true"))
     int32 CurrentFormation = 433;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Football|Formation", meta = (AllowPrivateAccess = "true"))
     TMap<int32, TArray<FVector>> FormationPositions; // FormationID -> Relative positions
 
     // Manager
@@ -243,6 +272,5 @@ private:
     void UpdatePossessionTime(float DeltaTime);
     void UpdatePlayerPositions(float DeltaTime);
     void ApplyTacticalInstructions();
-    FVector CalculateFormationPosition(EFootballPlayerRole::Type Role) const;
     void UpdateTeamShape(float DeltaTime);
 };

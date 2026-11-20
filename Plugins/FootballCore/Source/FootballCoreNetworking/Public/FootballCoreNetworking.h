@@ -16,10 +16,7 @@ public:
         return FModuleManager::LoadModuleChecked<FFootballCoreNetworkingModule>("FootballCoreNetworking");
     }
 
-    static bool IsAvailable()
-    {
-        return FModuleManager::Get().IsModuleLoaded("FootballCoreNetworking");
-    }
+    static bool IsAvailable() { return FModuleManager::Get().IsModuleLoaded("FootballCoreNetworking"); }
 };
 
 DECLARE_LOG_CATEGORY_EXTERN(LogFootballCoreNetworking, Log, All);

@@ -7,15 +7,12 @@ Binaries/
 *.exe
 *.pdb
 
-# Build
-Build/
-*.build.cs
-*.target.cs
-*.uproject
+# Generated IDE/Project Files
 *.sln
 *.vcxproj
 *.vcxproj.filters
 *.vcxproj.user
+*.vsconfig
 
 # Intermediate
 Intermediate/
@@ -99,7 +96,6 @@ Thumbs.db
 
 # Automation
 *.automation
-*.uproject
 
 # Plugins (compiled)
 Plugins/*/Binaries/

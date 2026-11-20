@@ -19,36 +19,58 @@
       "Name": "FootballCore",
       "Type": "Runtime",
       "LoadingPhase": "Default",
-      "WhitelistPlatforms": ["Win64", "Mac", "Linux", "Android", "IOS"]
+      "PlatformAllowList": ["Win64", "Mac", "Linux", "Android", "IOS"]
     },
     {
       "Name": "FootballCoreGameplay",
       "Type": "Runtime",
       "LoadingPhase": "Default",
-      "WhitelistPlatforms": ["Win64", "Mac", "Linux", "Android", "IOS"],
+      "PlatformAllowList": ["Win64", "Mac", "Linux", "Android", "IOS"],
       "AdditionalDependencies": ["FootballCore"]
     },
     {
       "Name": "FootballCoreAI",
       "Type": "Runtime",
       "LoadingPhase": "Default",
-      "WhitelistPlatforms": ["Win64", "Mac", "Linux", "Android", "IOS"],
+      "PlatformAllowList": ["Win64", "Mac", "Linux", "Android", "IOS"],
       "AdditionalDependencies": ["FootballCore", "FootballCoreGameplay", "AIModule", "GameplayTasks"]
     },
     {
       "Name": "FootballCoreNetworking",
       "Type": "Runtime",
       "LoadingPhase": "Default",
-      "WhitelistPlatforms": ["Win64", "Mac", "Linux", "Android", "IOS"],
+      "PlatformAllowList": ["Win64", "Mac", "Linux", "Android", "IOS"],
       "AdditionalDependencies": ["FootballCore", "FootballCoreGameplay", "NetCore"]
     },
     {
       "Name": "FootballCoreUI",
       "Type": "Runtime",
       "LoadingPhase": "Default",
-      "WhitelistPlatforms": ["Win64", "Mac", "Linux", "Android", "IOS"],
-      "AdditionalDependencies": ["FootballCore", "FootballCoreGameplay", "UMG", "Slate", "SlateCore"]
+      "PlatformAllowList": ["Win64", "Mac", "Linux", "Android", "IOS"],
+      "AdditionalDependencies": ["FootballCore", "FootballCoreGameplay", "FootballCoreNetworking", "UMG", "Slate", "SlateCore"]
     }
   ],
-  "SupportedTargetPlatforms": ["Windows", "Mac", "Linux", "Android", "IOS"]
+  "Plugins": [
+    {
+      "Name": "EnhancedInput",
+      "Enabled": true
+    },
+    {
+      "Name": "Niagara",
+      "Enabled": true
+    },
+    {
+      "Name": "ControlRig",
+      "Enabled": true
+    },
+    {
+      "Name": "StateTree",
+      "Enabled": true
+    },
+    {
+      "Name": "GameplayStateTree",
+      "Enabled": true
+    }
+  ],
+  "SupportedTargetPlatforms": ["Win64", "Mac", "Linux", "Android", "IOS"]
 }

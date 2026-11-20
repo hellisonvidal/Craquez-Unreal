@@ -14,7 +14,8 @@ class USoundBase;
 class UPhysicalMaterial;
 class UCurveFloat;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnBallKicked, const FVector&, Impulse, const FVector&, Spin, AActor*, Instigator);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnBallKicked, const FVector&, Impulse, const FVector&, Spin, AActor*,
+                                               Instigator);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnBallCollision, const FHitResult&, HitResult, AActor*, OtherActor);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBallGoalScored, EFootballTeamSide::Type, ScoringTeam);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBallOutOfPlay, EFootballTeamSide::Type, LastTouchTeam);
@@ -38,7 +39,8 @@ public:
     UFootballBallComponent();
 
     virtual void BeginPlay() override;
-    virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+    virtual void TickComponent(float DeltaTime, ELevelTick TickType,
+                               FActorComponentTickFunction* ThisTickFunction) override;
     virtual void OnRegister() override;
 
     // Ball Physics Simulation
@@ -75,12 +77,21 @@ public:
     UFUNCTION(BlueprintPure, Category = "Football|Ball Physics")
     FFootballBallPhysicsParams GetPhysicsParams() const { return PhysicsParams; }
 
+    void SetEffectComponents(UNiagaraComponent* InTrail, UNiagaraComponent* InSpin, UNiagaraComponent* InDeformation)
+    {
+        TrailEffect = InTrail;
+        SpinEffect = InSpin;
+        DeformationEffect = InDeformation;
+    }
+
     // Deterministic replication
     UFUNCTION(BlueprintCallable, Category = "Football|Network")
-    void SetDeterministicState(const FFootballFixedVector& Position, const FFootballFixedVector& Velocity, const FFootballFixedVector& AngularVelocity, int32 FrameNumber);
+    void SetDeterministicState(const FFootballFixedVector& Position, const FFootballFixedVector& Velocity,
+                               const FFootballFixedVector& AngularVelocity, int32 FrameNumber);
 
     UFUNCTION(BlueprintCallable, Category = "Football|Network")
-    void GetDeterministicState(FFootballFixedVector& OutPosition, FFootballFixedVector& OutVelocity, FFootballFixedVector& OutAngularVelocity, int32& OutFrameNumber) const;
+    void GetDeterministicState(FFootballFixedVector& OutPosition, FFootballFixedVector& OutVelocity,
+                               FFootballFixedVector& OutAngularVelocity, int32& OutFrameNumber) const;
 
     // Events
     UPROPERTY(BlueprintAssignable, Category = "Football|Events")
@@ -124,40 +135,51 @@ protected:
 
 private:
     // Physics Parameters
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Football|Ball Physics", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Football|Ball Physics",
+              meta = (AllowPrivateAccess = "true"))
     FFootballBallPhysicsParams PhysicsParams;
 
     // Runtime Physics State
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Ball Physics", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Ball Physics",
+              meta = (AllowPrivateAccess = "true"))
     FVector CurrentVelocity = FVector::ZeroVector;
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Ball Physics", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Ball Physics",
+              meta = (AllowPrivateAccess = "true"))
     FVector CurrentAngularVelocity = FVector::ZeroVector;
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Ball Physics", meta = (AllowPrivateAccess = "true"))
-    EFootballBallState::Type CurrentBallState = EFootballBallState::Free;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Ball Physics",
+              meta = (AllowPrivateAccess = "true"))
+    TEnumAsByte<EFootballBallState::Type> CurrentBallState = EFootballBallState::Free;
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Ball Physics", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Ball Physics",
+              meta = (AllowPrivateAccess = "true"))
     AActor* PossessingPlayer = nullptr;
 
     // Deformation
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Deformation", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Deformation",
+              meta = (AllowPrivateAccess = "true"))
     float CurrentDeformation = 0.0f;
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Deformation", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Deformation",
+              meta = (AllowPrivateAccess = "true"))
     FVector DeformationDirection = FVector::ZeroVector;
 
     // Components
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Components", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Components",
+              meta = (AllowPrivateAccess = "true"))
     TObjectPtr<UPrimitiveComponent> BallMeshComponent = nullptr;
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Components", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Components",
+              meta = (AllowPrivateAccess = "true"))
     TObjectPtr<UNiagaraComponent> TrailEffect = nullptr;
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Components", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Components",
+              meta = (AllowPrivateAccess = "true"))
     TObjectPtr<UNiagaraComponent> SpinEffect = nullptr;
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Components", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Components",
+              meta = (AllowPrivateAccess = "true"))
     TObjectPtr<UNiagaraComponent> DeformationEffect = nullptr;
 
     // Audio

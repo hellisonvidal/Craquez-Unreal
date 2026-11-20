@@ -1,6 +1,7 @@
 // Copyright 2024 Craquez. All Rights Reserved.
 
 #include "Team/FootballTeam.h"
+#include "Team/FootballTeamManager.h"
 #include "Player/FootballPlayerCharacter.h"
 #include "Tactical/FootballTacticalComponent.h"
 #include "BallPhysics/FootballBallComponent.h"
@@ -17,47 +18,47 @@ AFootballTeam::AFootballTeam()
     // Default formation positions (relative to team center)
     // 4-3-3 Formation
     TArray<FVector> Formation433;
-    Formation433.Add(FVector(-4000, 0, 0));        // GK
-    Formation433.Add(FVector(-2500, -2000, 0));    // LB
-    Formation433.Add(FVector(-2500, 0, 0));        // CB1
-    Formation433.Add(FVector(-2500, 2000, 0));     // CB2
-    Formation433.Add(FVector(-2500, 4000, 0));     // RB
-    Formation433.Add(FVector(-500, -2500, 0));     // CDM
-    Formation433.Add(FVector(-500, 2500, 0));      // CM
-    Formation433.Add(FVector(1500, 0, 0));         // CAM
-    Formation433.Add(FVector(3500, -3000, 0));     // LW
-    Formation433.Add(FVector(3500, 3000, 0));      // RW
-    Formation433.Add(FVector(4500, 0, 0));         // ST
+    Formation433.Add(FVector(-4000, 0, 0));     // GK
+    Formation433.Add(FVector(-2500, -2000, 0)); // LB
+    Formation433.Add(FVector(-2500, 0, 0));     // CB1
+    Formation433.Add(FVector(-2500, 2000, 0));  // CB2
+    Formation433.Add(FVector(-2500, 4000, 0));  // RB
+    Formation433.Add(FVector(-500, -2500, 0));  // CDM
+    Formation433.Add(FVector(-500, 2500, 0));   // CM
+    Formation433.Add(FVector(1500, 0, 0));      // CAM
+    Formation433.Add(FVector(3500, -3000, 0));  // LW
+    Formation433.Add(FVector(3500, 3000, 0));   // RW
+    Formation433.Add(FVector(4500, 0, 0));      // ST
     FormationPositions.Add(433, Formation433);
 
     // 4-4-2 Formation
     TArray<FVector> Formation442;
-    Formation442.Add(FVector(-4000, 0, 0));        // GK
-    Formation442.Add(FVector(-2500, -2000, 0));    // LB
-    Formation442.Add(FVector(-2500, 0, 0));        // CB1
-    Formation442.Add(FVector(-2500, 2000, 0));     // CB2
-    Formation442.Add(FVector(-2500, 4000, 0));     // RB
-    Formation442.Add(FVector(-500, -3000, 0));     // LM
-    Formation442.Add(FVector(-500, -1000, 0));     // CM1
-    Formation442.Add(FVector(-500, 1000, 0));      // CM2
-    Formation442.Add(FVector(-500, 3000, 0));      // RM
-    Formation442.Add(FVector(3000, -1500, 0));     // ST1
-    Formation442.Add(FVector(3000, 1500, 0));      // ST2
+    Formation442.Add(FVector(-4000, 0, 0));     // GK
+    Formation442.Add(FVector(-2500, -2000, 0)); // LB
+    Formation442.Add(FVector(-2500, 0, 0));     // CB1
+    Formation442.Add(FVector(-2500, 2000, 0));  // CB2
+    Formation442.Add(FVector(-2500, 4000, 0));  // RB
+    Formation442.Add(FVector(-500, -3000, 0));  // LM
+    Formation442.Add(FVector(-500, -1000, 0));  // CM1
+    Formation442.Add(FVector(-500, 1000, 0));   // CM2
+    Formation442.Add(FVector(-500, 3000, 0));   // RM
+    Formation442.Add(FVector(3000, -1500, 0));  // ST1
+    Formation442.Add(FVector(3000, 1500, 0));   // ST2
     FormationPositions.Add(442, Formation442);
 
     // 3-5-2 Formation
     TArray<FVector> Formation352;
-    Formation352.Add(FVector(-4000, 0, 0));        // GK
-    Formation352.Add(FVector(-2500, -1500, 0));    // CB1
-    Formation352.Add(FVector(-2500, 1500, 0));     // CB2
-    Formation352.Add(FVector(-2500, 0, 0));        // CB3
-    Formation352.Add(FVector(-500, -3000, 0));     // LWB
-    Formation352.Add(FVector(-500, -1000, 0));     // CM1
-    Formation352.Add(FVector(-500, 1000, 0));      // CM2
-    Formation352.Add(FVector(-500, 3000, 0));      // RWB
-    Formation352.Add(FVector(1500, 0, 0));         // CAM
-    Formation352.Add(FVector(3500, -2000, 0));     // ST1
-    Formation352.Add(FVector(3500, 2000, 0));      // ST2
+    Formation352.Add(FVector(-4000, 0, 0));     // GK
+    Formation352.Add(FVector(-2500, -1500, 0)); // CB1
+    Formation352.Add(FVector(-2500, 1500, 0));  // CB2
+    Formation352.Add(FVector(-2500, 0, 0));     // CB3
+    Formation352.Add(FVector(-500, -3000, 0));  // LWB
+    Formation352.Add(FVector(-500, -1000, 0));  // CM1
+    Formation352.Add(FVector(-500, 1000, 0));   // CM2
+    Formation352.Add(FVector(-500, 3000, 0));   // RWB
+    Formation352.Add(FVector(1500, 0, 0));      // CAM
+    Formation352.Add(FVector(3500, -2000, 0));  // ST1
+    Formation352.Add(FVector(3500, 2000, 0));   // ST2
     FormationPositions.Add(352, Formation352);
 }
 
@@ -82,7 +83,8 @@ void AFootballTeam::Tick(float DeltaTime)
     UpdateTeamShape(DeltaTime);
 }
 
-void AFootballTeam::InitializeTeam(EFootballTeamSide::Type InSide, const FString& InTeamName, const FFootballTacticalInstructions& InTactics)
+void AFootballTeam::InitializeTeam(EFootballTeamSide::Type InSide, const FString& InTeamName,
+                                   const FFootballTacticalInstructions& InTactics)
 {
     TeamSide = InSide;
     TeamName = InTeamName;
@@ -99,7 +101,7 @@ void AFootballTeam::SetTeamManager(AFootballTeamManager* InManager)
     TeamManager = InManager;
 }
 
-void AFootballTeam::AddPlayer(AFootballPlayerCharacter* Player, EFootballPlayerRole::Type Role)
+void AFootballTeam::AddPlayer(AFootballPlayerCharacter* Player, EFootballPlayerRole::Type InRole)
 {
     if (!Player || Players.Contains(Player))
     {
@@ -107,12 +109,12 @@ void AFootballTeam::AddPlayer(AFootballPlayerCharacter* Player, EFootballPlayerR
     }
 
     Players.Add(Player);
-    PlayerByRole.Add(Role, Player);
+    PlayerByRole.Add(InRole, Player);
     Player->SetTeam(this);
-    Player->SetPlayerRole(Role);
+    Player->SetPlayerRole(InRole);
 
     // Assign special roles
-    if (Role == EFootballPlayerRole::Goalkeeper)
+    if (InRole == EFootballPlayerRole::Goalkeeper)
     {
         Goalkeeper = Player;
     }
@@ -181,21 +183,21 @@ void AFootballTeam::ApplyTactic(FGameplayTag TacticTag, float Value)
     OnTacticChanged.Broadcast(TacticTag);
 }
 
-AFootballPlayerCharacter* AFootballTeam::GetPlayerByRole(EFootballPlayerRole::Type Role) const
+AFootballPlayerCharacter* AFootballTeam::GetPlayerByRole(EFootballPlayerRole::Type InRole) const
 {
-    if (PlayerByRole.Contains(Role))
+    if (PlayerByRole.Contains(InRole))
     {
-        return PlayerByRole[Role];
+        return PlayerByRole[InRole];
     }
     return nullptr;
 }
 
-TArray<AFootballPlayerCharacter*> AFootballTeam::GetPlayersByRole(EFootballPlayerRole::Type Role) const
+TArray<AFootballPlayerCharacter*> AFootballTeam::GetPlayersByRole(EFootballPlayerRole::Type InRole) const
 {
     TArray<AFootballPlayerCharacter*> Result;
     for (AFootballPlayerCharacter* Player : Players)
     {
-        if (Player->GetPlayerRole() == Role)
+        if (Player->GetPlayerRole() == InRole)
         {
             Result.Add(Player);
         }
@@ -310,14 +312,15 @@ void AFootballTeam::OnPossessionGained()
 void AFootballTeam::OnPossessionLost()
 {
     bHasPossession = false;
-    OnPossessionChanged.Broadcast(TeamSide == EFootballTeamSide::Home ? EFootballTeamSide::Away : EFootballTeamSide::Home);
+    OnPossessionChanged.Broadcast(TeamSide == EFootballTeamSide::Home ? EFootballTeamSide::Away
+                                                                      : EFootballTeamSide::Home);
     ApplyTactic(FGameplayTag::RequestGameplayTag("Team.Defending"), 1.0f);
 }
 
 void AFootballTeam::OnGoalScored(AFootballPlayerCharacter* Scorer)
 {
     GoalsScored++;
-    OnGoalScored.Broadcast(TeamSide, Scorer);
+    OnTeamGoalScored.Broadcast(TeamSide, Scorer);
 }
 
 void AFootballTeam::OnGoalConceded()
@@ -354,11 +357,20 @@ bool AFootballTeam::RequestSubstitution(AFootballPlayerCharacter* PlayerOut, AFo
         return false;
     }
 
-    EFootballPlayerRole::Type Role = PlayerOut->GetPlayerRole();
+    EFootballPlayerRole::Type OutRole = PlayerOut->GetPlayerRole();
     RemovePlayer(PlayerOut);
-    AddPlayer(PlayerIn, Role);
+    AddPlayer(PlayerIn, OutRole);
 
     return true;
+}
+
+float AFootballTeam::GetPossessionPercent() const
+{
+    if (TeamManager)
+    {
+        return TeamManager->GetPossessionPercent(TeamSide);
+    }
+    return 0.0f;
 }
 
 void AFootballTeam::UpdatePossessionTime(float DeltaTime)
@@ -430,18 +442,16 @@ void AFootballTeam::ApplyTacticalInstructions()
             TargetPos.Y *= (Tactics.Width / 50.0f);
 
             // Adjust for defensive/engagement line based on role
-            EFootballPlayerRole::Type Role = Player->GetPlayerRole();
-            if (Role == EFootballPlayerRole::Goalkeeper ||
-                Role == EFootballPlayerRole::CenterBack ||
-                Role == EFootballPlayerRole::LeftBack ||
-                Role == EFootballPlayerRole::RightBack)
+            EFootballPlayerRole::Type PlayerRoleVal = Player->GetPlayerRole();
+            if (PlayerRoleVal == EFootballPlayerRole::Goalkeeper || PlayerRoleVal == EFootballPlayerRole::CenterBack ||
+                PlayerRoleVal == EFootballPlayerRole::LeftBack || PlayerRoleVal == EFootballPlayerRole::RightBack)
             {
                 TargetPos.X += DefensiveOffset;
             }
-            else if (Role == EFootballPlayerRole::Striker ||
-                     Role == EFootballPlayerRole::CenterForward ||
-                     Role == EFootballPlayerRole::LeftWinger ||
-                     Role == EFootballPlayerRole::RightWinger)
+            else if (PlayerRoleVal == EFootballPlayerRole::Striker ||
+                     PlayerRoleVal == EFootballPlayerRole::CenterForward ||
+                     PlayerRoleVal == EFootballPlayerRole::LeftWinger ||
+                     PlayerRoleVal == EFootballPlayerRole::RightWinger)
             {
                 TargetPos.X += EngagementOffset;
             }
@@ -465,7 +475,7 @@ void AFootballTeam::UpdateTeamShape(float DeltaTime)
     }
 }
 
-FVector AFootballTeam::CalculateFormationPosition(EFootballPlayerRole::Type Role) const
+FVector AFootballTeam::CalculateFormationPosition(EFootballPlayerRole::Type InRole) const
 {
     if (!FormationPositions.Contains(CurrentFormation))
     {
@@ -474,20 +484,44 @@ FVector AFootballTeam::CalculateFormationPosition(EFootballPlayerRole::Type Role
 
     // Map role to formation index
     int32 Index = 0;
-    switch (Role)
+    switch (InRole)
     {
-        case EFootballPlayerRole::Goalkeeper: Index = 0; break;
-        case EFootballPlayerRole::LeftBack: Index = 1; break;
-        case EFootballPlayerRole::CenterBack: Index = 2; break;
-        case EFootballPlayerRole::RightBack: Index = 3; break;
-        case EFootballPlayerRole::DefensiveMidfielder: Index = 4; break;
-        case EFootballPlayerRole::CentralMidfielder: Index = 5; break;
-        case EFootballPlayerRole::AttackingMidfielder: Index = 6; break;
-        case EFootballPlayerRole::LeftWinger: Index = 7; break;
-        case EFootballPlayerRole::RightWinger: Index = 8; break;
-        case EFootballPlayerRole::Striker: Index = 9; break;
-        case EFootballPlayerRole::CenterForward: Index = 10; break;
-        default: Index = 0; break;
+    case EFootballPlayerRole::Goalkeeper:
+        Index = 0;
+        break;
+    case EFootballPlayerRole::LeftBack:
+        Index = 1;
+        break;
+    case EFootballPlayerRole::CenterBack:
+        Index = 2;
+        break;
+    case EFootballPlayerRole::RightBack:
+        Index = 3;
+        break;
+    case EFootballPlayerRole::DefensiveMidfielder:
+        Index = 4;
+        break;
+    case EFootballPlayerRole::CentralMidfielder:
+        Index = 5;
+        break;
+    case EFootballPlayerRole::AttackingMidfielder:
+        Index = 6;
+        break;
+    case EFootballPlayerRole::LeftWinger:
+        Index = 7;
+        break;
+    case EFootballPlayerRole::RightWinger:
+        Index = 8;
+        break;
+    case EFootballPlayerRole::Striker:
+        Index = 9;
+        break;
+    case EFootballPlayerRole::CenterForward:
+        Index = 10;
+        break;
+    default:
+        Index = 0;
+        break;
     }
 
     const TArray<FVector>& Positions = FormationPositions[CurrentFormation];

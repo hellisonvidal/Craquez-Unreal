@@ -17,77 +17,77 @@ class UFootballTacticalComponent;
  */
 namespace FFootballTags
 {
-    // Game States
-    extern const FGameplayTag Game_Active;
-    extern const FGameplayTag Game_Paused;
-    extern const FGameplayTag Game_HalfTime;
-    extern const FGameplayTag Game_Finished;
-    extern const FGameplayTag Game_SetPiece;
+// Game States
+FOOTBALLCORE_API extern FGameplayTag Game_Active;
+FOOTBALLCORE_API extern FGameplayTag Game_Paused;
+FOOTBALLCORE_API extern FGameplayTag Game_HalfTime;
+FOOTBALLCORE_API extern FGameplayTag Game_Finished;
+FOOTBALLCORE_API extern FGameplayTag Game_SetPiece;
 
-    // Ball States
-    extern const FGameplayTag Ball_Free;
-    extern const FGameplayTag Ball_Possessed;
-    extern const FGameplayTag Ball_Flying;
-    extern const FGameplayTag Ball_Rolling;
-    extern const FGameplayTag Ball_OutOfPlay;
-    extern const FGameplayTag Ball_Goal;
+// Ball States
+FOOTBALLCORE_API extern FGameplayTag Ball_Free;
+FOOTBALLCORE_API extern FGameplayTag Ball_Possessed;
+FOOTBALLCORE_API extern FGameplayTag Ball_Flying;
+FOOTBALLCORE_API extern FGameplayTag Ball_Rolling;
+FOOTBALLCORE_API extern FGameplayTag Ball_OutOfPlay;
+FOOTBALLCORE_API extern FGameplayTag Ball_Goal;
 
-    // Player States
-    extern const FGameplayTag Player_Idle;
-    extern const FGameplayTag Player_Running;
-    extern const FGameplayTag Player_Sprinting;
-    extern const FGameplayTag Player_Dribbling;
-    extern const FGameplayTag Player_Passing;
-    extern const FGameplayTag Player_Shooting;
-    extern const FGameplayTag Player_Tackling;
-    extern const FGameplayTag Player_Intercepting;
-    extern const FGameplayTag Player_Goalkeeping;
-    extern const FGameplayTag Player_Celebrating;
-    extern const FGameplayTag Player_Injured;
-    extern const FGameplayTag Player_Fatigued;
+// Player States
+FOOTBALLCORE_API extern FGameplayTag Player_Idle;
+FOOTBALLCORE_API extern FGameplayTag Player_Running;
+FOOTBALLCORE_API extern FGameplayTag Player_Sprinting;
+FOOTBALLCORE_API extern FGameplayTag Player_Dribbling;
+FOOTBALLCORE_API extern FGameplayTag Player_Passing;
+FOOTBALLCORE_API extern FGameplayTag Player_Shooting;
+FOOTBALLCORE_API extern FGameplayTag Player_Tackling;
+FOOTBALLCORE_API extern FGameplayTag Player_Intercepting;
+FOOTBALLCORE_API extern FGameplayTag Player_Goalkeeping;
+FOOTBALLCORE_API extern FGameplayTag Player_Celebrating;
+FOOTBALLCORE_API extern FGameplayTag Player_Injured;
+FOOTBALLCORE_API extern FGameplayTag Player_Fatigued;
 
-    // Team States
-    extern const FGameplayTag Team_Attacking;
-    extern const FGameplayTag Team_Defending;
-    extern const FGameplayTag Team_Pressing;
-    extern const FGameplayTag Team_CounterAttacking;
-    extern const FGameplayTag Team_Possession;
-    extern const FGameplayTag Team_SetPieceAttack;
-    extern const FGameplayTag Team_SetPieceDefense;
+// Team States
+FOOTBALLCORE_API extern FGameplayTag Team_Attacking;
+FOOTBALLCORE_API extern FGameplayTag Team_Defending;
+FOOTBALLCORE_API extern FGameplayTag Team_Pressing;
+FOOTBALLCORE_API extern FGameplayTag Team_CounterAttacking;
+FOOTBALLCORE_API extern FGameplayTag Team_Possession;
+FOOTBALLCORE_API extern FGameplayTag Team_SetPieceAttack;
+FOOTBALLCORE_API extern FGameplayTag Team_SetPieceDefense;
 
-    // Actions
-    extern const FGameplayTag Action_Pass_Short;
-    extern const FGameplayTag Action_Pass_Long;
-    extern const FGameplayTag Action_Pass_Through;
-    extern const FGameplayTag Action_Pass_Cross;
-    extern const FGameplayTag Action_Shoot_Power;
-    extern const FGameplayTag Action_Shoot_Placement;
-    extern const FGameplayTag Action_Shoot_Chip;
-    extern const FGameplayTag Action_Shoot_Volley;
-    extern const FGameplayTag Action_Dribble;
-    extern const FGameplayTag Action_SkillMove;
-    extern const FGameplayTag Action_Tackle_Standing;
-    extern const FGameplayTag Action_Tackle_Sliding;
-    extern const FGameplayTag Action_Intercept;
-    extern const FGameplayTag Action_Block;
-    extern const FGameplayTag Action_Clearance;
-    extern const FGameplayTag Action_Header;
-    extern const FGameplayTag Action_Goalkeeper_Save;
-    extern const FGameplayTag Action_Goalkeeper_Catch;
-    extern const FGameplayTag Action_Goalkeeper_Punch;
-    extern const FGameplayTag Action_Goalkeeper_Distribute_Throw;
-    extern const FGameplayTag Action_Goalkeeper_Distribute_Kick;
+// Actions
+FOOTBALLCORE_API extern FGameplayTag Action_Pass_Short;
+FOOTBALLCORE_API extern FGameplayTag Action_Pass_Long;
+FOOTBALLCORE_API extern FGameplayTag Action_Pass_Through;
+FOOTBALLCORE_API extern FGameplayTag Action_Pass_Cross;
+FOOTBALLCORE_API extern FGameplayTag Action_Shoot_Power;
+FOOTBALLCORE_API extern FGameplayTag Action_Shoot_Placement;
+FOOTBALLCORE_API extern FGameplayTag Action_Shoot_Chip;
+FOOTBALLCORE_API extern FGameplayTag Action_Shoot_Volley;
+FOOTBALLCORE_API extern FGameplayTag Action_Dribble;
+FOOTBALLCORE_API extern FGameplayTag Action_SkillMove;
+FOOTBALLCORE_API extern FGameplayTag Action_Tackle_Standing;
+FOOTBALLCORE_API extern FGameplayTag Action_Tackle_Sliding;
+FOOTBALLCORE_API extern FGameplayTag Action_Intercept;
+FOOTBALLCORE_API extern FGameplayTag Action_Block;
+FOOTBALLCORE_API extern FGameplayTag Action_Clearance;
+FOOTBALLCORE_API extern FGameplayTag Action_Header;
+FOOTBALLCORE_API extern FGameplayTag Action_Goalkeeper_Save;
+FOOTBALLCORE_API extern FGameplayTag Action_Goalkeeper_Catch;
+FOOTBALLCORE_API extern FGameplayTag Action_Goalkeeper_Punch;
+FOOTBALLCORE_API extern FGameplayTag Action_Goalkeeper_Distribute_Throw;
+FOOTBALLCORE_API extern FGameplayTag Action_Goalkeeper_Distribute_Kick;
 
-    // Body Parts
-    extern const FGameplayTag Body_LeftFoot;
-    extern const FGameplayTag Body_RightFoot;
-    extern const FGameplayTag Body_Head;
-    extern const FGameplayTag Body_Chest;
-    extern const FGameplayTag Body_LeftThigh;
-    extern const FGameplayTag Body_RightThigh;
-    extern const FGameplayTag Body_LeftShoulder;
-    extern const FGameplayTag Body_RightShoulder;
-}
+// Body Parts
+FOOTBALLCORE_API extern FGameplayTag Body_LeftFoot;
+FOOTBALLCORE_API extern FGameplayTag Body_RightFoot;
+FOOTBALLCORE_API extern FGameplayTag Body_Head;
+FOOTBALLCORE_API extern FGameplayTag Body_Chest;
+FOOTBALLCORE_API extern FGameplayTag Body_LeftThigh;
+FOOTBALLCORE_API extern FGameplayTag Body_RightThigh;
+FOOTBALLCORE_API extern FGameplayTag Body_LeftShoulder;
+FOOTBALLCORE_API extern FGameplayTag Body_RightShoulder;
+} // namespace FFootballTags
 
 /**
  * Football specific enums
@@ -95,86 +95,111 @@ namespace FFootballTags
 UENUM(BlueprintType)
 namespace EFootballGameMode
 {
-    enum Type
-    {
-        TrainingMatch_11v11 UMETA(DisplayName = "Training Match 11v11"),
-        OneVOne_StrikerVsKeeper UMETA(DisplayName = "1v1 Striker vs Keeper"),
-        PenaltyShootout UMETA(DisplayName = "Penalty Shootout"),
-        FreeKick_Practice UMETA(DisplayName = "Free Kick Practice"),
-        Custom UMETA(DisplayName = "Custom")
-    };
+enum Type
+{
+    TrainingMatch_11v11 UMETA(DisplayName = "Training Match 11v11"),
+    OneVOne_StrikerVsKeeper UMETA(DisplayName = "1v1 Striker vs Keeper"),
+    PenaltyShootout UMETA(DisplayName = "Penalty Shootout"),
+    FreeKick_Practice UMETA(DisplayName = "Free Kick Practice"),
+    Custom UMETA(DisplayName = "Custom")
+};
 }
 
 UENUM(BlueprintType)
 namespace EFootballBallState
 {
-    enum Type
-    {
-        Free UMETA(DisplayName = "Free"),
-        Possessed UMETA(DisplayName = "Possessed"),
-        Flying UMETA(DisplayName = "Flying"),
-        Rolling UMETA(DisplayName = "Rolling"),
-        OutOfPlay UMETA(DisplayName = "Out of Play"),
-        Goal UMETA(DisplayName = "Goal")
-    };
+enum Type
+{
+    Free UMETA(DisplayName = "Free"),
+    Possessed UMETA(DisplayName = "Possessed"),
+    Flying UMETA(DisplayName = "Flying"),
+    Rolling UMETA(DisplayName = "Rolling"),
+    OutOfPlay UMETA(DisplayName = "Out of Play"),
+    Goal UMETA(DisplayName = "Goal")
+};
 }
 
 UENUM(BlueprintType)
 namespace EFootballPlayerRole
 {
-    enum Type
-    {
-        Goalkeeper UMETA(DisplayName = "Goalkeeper"),
-        CenterBack UMETA(DisplayName = "Center Back"),
-        LeftBack UMETA(DisplayName = "Left Back"),
-        RightBack UMETA(DisplayName = "Right Back"),
-        DefensiveMidfielder UMETA(DisplayName = "Defensive Midfielder"),
-        CentralMidfielder UMETA(DisplayName = "Central Midfielder"),
-        AttackingMidfielder UMETA(DisplayName = "Attacking Midfielder"),
-        LeftWinger UMETA(DisplayName = "Left Winger"),
-        RightWinger UMETA(DisplayName = "Right Winger"),
-        Striker UMETA(DisplayName = "Striker"),
-        CenterForward UMETA(DisplayName = "Center Forward"),
-        Substitute UMETA(DisplayName = "Substitute")
-    };
+enum Type
+{
+    Goalkeeper UMETA(DisplayName = "Goalkeeper"),
+    CenterBack UMETA(DisplayName = "Center Back"),
+    LeftBack UMETA(DisplayName = "Left Back"),
+    RightBack UMETA(DisplayName = "Right Back"),
+    DefensiveMidfielder UMETA(DisplayName = "Defensive Midfielder"),
+    CentralMidfielder UMETA(DisplayName = "Central Midfielder"),
+    AttackingMidfielder UMETA(DisplayName = "Attacking Midfielder"),
+    LeftWinger UMETA(DisplayName = "Left Winger"),
+    RightWinger UMETA(DisplayName = "Right Winger"),
+    Striker UMETA(DisplayName = "Striker"),
+    CenterForward UMETA(DisplayName = "Center Forward"),
+    Substitute UMETA(DisplayName = "Substitute")
+};
 }
 
 UENUM(BlueprintType)
 namespace EFootballTeamSide
 {
-    enum Type
-    {
-        Home UMETA(DisplayName = "Home"),
-        Away UMETA(DisplayName = "Away"),
-        Neutral UMETA(DisplayName = "Neutral")
-    };
+enum Type
+{
+    Home UMETA(DisplayName = "Home"),
+    Away UMETA(DisplayName = "Away"),
+    Neutral UMETA(DisplayName = "Neutral")
+};
 }
 
 UENUM(BlueprintType)
 namespace EFootballMatchPhase
 {
-    enum Type
-    {
-        KickOff UMETA(DisplayName = "Kick Off"),
-        OpenPlay UMETA(DisplayName = "Open Play"),
-        SetPiece_Corner UMETA(DisplayName = "Corner"),
-        SetPiece_FreeKick UMETA(DisplayName = "Free Kick"),
-        SetPiece_Penalty UMETA(DisplayName = "Penalty"),
-        SetPiece_ThrowIn UMETA(DisplayName = "Throw In"),
-        SetPiece_GoalKick UMETA(DisplayName = "Goal Kick"),
-        HalfTime UMETA(DisplayName = "Half Time"),
-        FullTime UMETA(DisplayName = "Full Time")
-    };
+enum Type
+{
+    KickOff UMETA(DisplayName = "Kick Off"),
+    OpenPlay UMETA(DisplayName = "Open Play"),
+    SetPiece_Corner UMETA(DisplayName = "Corner"),
+    SetPiece_FreeKick UMETA(DisplayName = "Free Kick"),
+    SetPiece_Penalty UMETA(DisplayName = "Penalty"),
+    SetPiece_ThrowIn UMETA(DisplayName = "Throw In"),
+    SetPiece_GoalKick UMETA(DisplayName = "Goal Kick"),
+    HalfTime UMETA(DisplayName = "Half Time"),
+    FullTime UMETA(DisplayName = "Full Time")
+};
+}
+
+UENUM(BlueprintType)
+namespace EFootballMovementMode
+{
+enum Type : int
+{
+    Walking UMETA(DisplayName = "Walking"),
+    Jogging UMETA(DisplayName = "Jogging"),
+    Sprinting UMETA(DisplayName = "Sprinting"),
+    Dribbling UMETA(DisplayName = "Dribbling"),
+    Shielding UMETA(DisplayName = "Shielding"),
+    Jockeying UMETA(DisplayName = "Jockeying"),
+    Sliding UMETA(DisplayName = "Sliding"),
+    Jumping UMETA(DisplayName = "Jumping"),
+    Falling UMETA(DisplayName = "Falling")
+};
 }
 
 /**
  * Deterministic fixed-point math for network replication
  */
-struct FFootballFixedVector
+USTRUCT(BlueprintType)
+struct FOOTBALLCORE_API FFootballFixedVector
 {
-    int32 X;
-    int32 Y;
-    int32 Z;
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Football|Math")
+    int32 X = 0;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Football|Math")
+    int32 Y = 0;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Football|Math")
+    int32 Z = 0;
 
     FFootballFixedVector() : X(0), Y(0), Z(0) {}
     FFootballFixedVector(int32 InX, int32 InY, int32 InZ) : X(InX), Y(InY), Z(InZ) {}
@@ -189,11 +214,19 @@ struct FFootballFixedVector
     bool operator!=(const FFootballFixedVector& Other) const;
 };
 
-struct FFootballFixedRotator
+USTRUCT(BlueprintType)
+struct FOOTBALLCORE_API FFootballFixedRotator
 {
-    int32 Pitch;
-    int32 Yaw;
-    int32 Roll;
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Football|Math")
+    int32 Pitch = 0;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Football|Math")
+    int32 Yaw = 0;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Football|Math")
+    int32 Roll = 0;
 
     FFootballFixedRotator() : Pitch(0), Yaw(0), Roll(0) {}
     FFootballFixedRotator(int32 InPitch, int32 InYaw, int32 InRoll) : Pitch(InPitch), Yaw(InYaw), Roll(InRoll) {}
@@ -322,6 +355,12 @@ struct FFootballPlayerAttributes
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Technical")
     float Curve = 70.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Technical")
+    float Heading = 70.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Technical")
+    float Tackling = 70.0f;
 
     // Mental
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mental")

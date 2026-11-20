@@ -15,8 +15,8 @@ AFootballBallActor::AFootballBallActor()
 
     bReplicates = true;
     SetReplicateMovement(true);
-    NetUpdateFrequency = 60.0f;
-    MinNetUpdateFrequency = 30.0f;
+    SetNetUpdateFrequency(60.0f);
+    SetMinNetUpdateFrequency(30.0f);
 
     SetupComponents();
 }
@@ -102,9 +102,7 @@ void AFootballBallActor::SetupComponents()
     // Assign effects to ball component
     if (BallComponent)
     {
-        BallComponent->TrailEffect = TrailEffect;
-        BallComponent->SpinEffect = SpinEffect;
-        BallComponent->DeformationEffect = ImpactEffect;
+        BallComponent->SetEffectComponents(TrailEffect, SpinEffect, ImpactEffect);
     }
 }
 
@@ -132,11 +130,11 @@ void AFootballBallActor::SetBallMaterial(UMaterialInterface* Material)
     }
 }
 
-void AFootballBallActor::ApplyKick(const FVector& Impulse, const FVector& Spin, AActor* Instigator)
+void AFootballBallActor::ApplyKick(const FVector& Impulse, const FVector& Spin, AActor* KickInstigator)
 {
     if (BallComponent)
     {
-        BallComponent->ApplyKick(Impulse, Spin, Instigator);
+        BallComponent->ApplyKick(Impulse, Spin, KickInstigator);
     }
 }
 
@@ -149,12 +147,7 @@ void AFootballBallActor::ResetBall(const FVector& Location, const FRotator& Rota
     SetActorLocationAndRotation(Location, Rotation);
 }
 
-void AFootballBallActor::SetReplicateMovement(bool bReplicate)
-{
-    SetReplicateMovement(bReplicate);
-}
-
-void AFootballBallActor::OnBallKicked(const FVector& Impulse, const FVector& Spin, AActor* Instigator)
+void AFootballBallActor::OnBallKicked(const FVector& Impulse, const FVector& Spin, AActor* KickInstigator)
 {
     // Visual feedback for kick
     if (ImpactEffect)
@@ -187,30 +180,30 @@ void AFootballBallActor::OnBallStateChanged(EFootballBallState::Type NewState)
     // State change visual feedback
     switch (NewState)
     {
-        case EFootballBallState::Flying:
-            if (TrailEffect)
-            {
-                TrailEffect->Activate(true);
-            }
-            break;
-        case EFootballBallState::Rolling:
-            if (TrailEffect)
-            {
-                TrailEffect->Deactivate();
-            }
-            break;
-        case EFootballBallState::Free:
-        case EFootballBallState::Possessed:
-            if (TrailEffect)
-            {
-                TrailEffect->Deactivate();
-            }
-            if (SpinEffect)
-            {
-                SpinEffect->Deactivate();
-            }
-            break;
-        default:
-            break;
+    case EFootballBallState::Flying:
+        if (TrailEffect)
+        {
+            TrailEffect->Activate(true);
+        }
+        break;
+    case EFootballBallState::Rolling:
+        if (TrailEffect)
+        {
+            TrailEffect->Deactivate();
+        }
+        break;
+    case EFootballBallState::Free:
+    case EFootballBallState::Possessed:
+        if (TrailEffect)
+        {
+            TrailEffect->Deactivate();
+        }
+        if (SpinEffect)
+        {
+            SpinEffect->Deactivate();
+        }
+        break;
+    default:
+        break;
     }
 }

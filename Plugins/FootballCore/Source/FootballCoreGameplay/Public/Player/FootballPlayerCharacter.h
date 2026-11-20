@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "GameplayTagContainer.h"
+#include "InputActionValue.h"
 #include "FootballCoreTypes.h"
 #include "FootballPlayerCharacter.generated.h"
 
@@ -18,8 +19,10 @@ class UCurveFloat;
 class UInputAction;
 class UInputMappingContext;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnPlayerPossessionChanged, AActor*, Player, UFootballBallComponent*, Ball);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnPlayerActionExecuted, FGameplayTag, ActionTag, bool, bSuccess, AActor*, Target);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnPlayerPossessionChanged, AActor*, Player, UFootballBallComponent*,
+                                             Ball);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnPlayerActionExecuted, FGameplayTag, ActionTag, bool, bSuccess,
+                                               AActor*, Target);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPlayerStaminaChanged, float, CurrentStamina);
 
 /**
@@ -32,7 +35,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPlayerStaminaChanged, float, Curr
  * - Stamina and fatigue system
  */
 UCLASS(Blueprintable, BlueprintType)
-class FOOTBALLCORE_API AFootballPlayerCharacter : public ACharacter
+class FOOTBALLCOREGAMEPLAY_API AFootballPlayerCharacter : public ACharacter
 {
     GENERATED_BODY()
 
@@ -125,7 +128,10 @@ public:
     void RecoverStamina(float DeltaTime);
 
     UFUNCTION(BlueprintPure, Category = "Football|Stamina")
-    float GetStaminaPercent() const { return Attributes.Stamina > 0 ? CurrentStamina / Attributes.Stamina * 100.0f : 0.0f; }
+    float GetStaminaPercent() const
+    {
+        return Attributes.Stamina > 0 ? CurrentStamina / Attributes.Stamina * 100.0f : 0.0f;
+    }
 
     UFUNCTION(BlueprintPure, Category = "Football|Stamina")
     bool IsFatigued() const { return bIsFatigued; }
@@ -193,15 +199,23 @@ public:
     UFUNCTION(BlueprintPure, Category = "Football|State")
     FGameplayTag GetCurrentActionState() const { return CurrentActionState; }
 
+    UFUNCTION(BlueprintCallable, Category = "Football|State")
+    void SetCurrentActionState(FGameplayTag NewState) { CurrentActionState = NewState; }
+
     UFUNCTION(BlueprintPure, Category = "Football|State")
-    bool IsPerformingAction() const { return !CurrentActionState.IsValid() || CurrentActionState == FFootballTags::Player_Idle; }
+    bool IsPerformingAction() const
+    {
+        return CurrentActionState.IsValid() && CurrentActionState != FFootballTags::Player_Idle;
+    }
 
     // Network
     UFUNCTION(BlueprintCallable, Category = "Football|Network")
-    void Server_SetDeterministicState(const FFootballFixedVector& Position, const FFootballFixedVector& Velocity, const FFootballFixedRotator& Rotation, int32 FrameNumber);
+    void Server_SetDeterministicState(const FFootballFixedVector& Position, const FFootballFixedVector& Velocity,
+                                      const FFootballFixedRotator& Rotation, int32 FrameNumber);
 
     UFUNCTION(BlueprintCallable, Category = "Football|Network")
-    void GetDeterministicState(FFootballFixedVector& OutPosition, FFootballFixedVector& OutVelocity, FFootballFixedRotator& OutRotation, int32& OutFrameNumber) const;
+    void GetDeterministicState(FFootballFixedVector& OutPosition, FFootballFixedVector& OutVelocity,
+                               FFootballFixedRotator& OutRotation, int32& OutFrameNumber) const;
 
     // Events
     UPROPERTY(BlueprintAssignable, Category = "Football|Events")
@@ -215,10 +229,12 @@ public:
 
 protected:
     // Components
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Components", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Components",
+              meta = (AllowPrivateAccess = "true"))
     TObjectPtr<UFootballTacticalComponent> TacticalComponent;
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Components", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Components",
+              meta = (AllowPrivateAccess = "true"))
     TObjectPtr<UControlRigComponent> ControlRigComponent;
 
     // Ball
@@ -232,25 +248,28 @@ protected:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Football|Attributes", meta = (AllowPrivateAccess = "true"))
     FFootballPlayerAttributes Attributes;
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Attributes", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Attributes",
+              meta = (AllowPrivateAccess = "true"))
     float CurrentStamina = 100.0f;
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Attributes", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Attributes",
+              meta = (AllowPrivateAccess = "true"))
     bool bIsFatigued = false;
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Attributes", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Attributes",
+              meta = (AllowPrivateAccess = "true"))
     float FatigueRecoveryRate = 5.0f; // per second
 
     // Role
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Football|Role", meta = (AllowPrivateAccess = "true"))
-    EFootballPlayerRole::Type PlayerRole = EFootballPlayerRole::CentralMidfielder;
+    TEnumAsByte<EFootballPlayerRole::Type> PlayerRole = EFootballPlayerRole::CentralMidfielder;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Role", meta = (AllowPrivateAccess = "true"))
     TObjectPtr<AFootballTeam> Team = nullptr;
 
     // Action State
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|State", meta = (AllowPrivateAccess = "true"))
-    FGameplayTag CurrentActionState = FFootballTags::Player_Idle;
+    FGameplayTag CurrentActionState;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|State", meta = (AllowPrivateAccess = "true"))
     float ActionCooldown = 0.0f;
@@ -269,10 +288,12 @@ protected:
     float LookAtBlendWeight = 0.0f;
 
     // Motion Matching
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Football|MotionMatching", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Football|MotionMatching",
+              meta = (AllowPrivateAccess = "true"))
     TObjectPtr<UAnimSequence> MotionMatchingDatabase = nullptr;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Football|MotionMatching", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Football|MotionMatching",
+              meta = (AllowPrivateAccess = "true"))
     int32 MotionMatchingFrameWindow = 30;
 
     // Input
@@ -301,12 +322,13 @@ protected:
     TObjectPtr<UInputAction> SkillMoveAction;
 
     // Action Montages
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Football|Animation|Montages", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Football|Animation|Montages",
+              meta = (AllowPrivateAccess = "true"))
     TMap<FGameplayTag, TObjectPtr<UAnimMontage>> ActionMontages;
 
     // Movement
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Movement", meta = (AllowPrivateAccess = "true"))
-    EFootballMovementMode::Type CurrentMovementMode = EFootballMovementMode::Walking;
+    TEnumAsByte<EFootballMovementMode::Type> CurrentMovementMode = EFootballMovementMode::Walking;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Movement", meta = (AllowPrivateAccess = "true"))
     bool bWantsToSprint = false;
@@ -314,6 +336,8 @@ protected:
     // Deterministic
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Network", meta = (AllowPrivateAccess = "true"))
     int32 SimulationFrame = 0;
+
+    virtual void OnMovementModeChanged(EMovementMode PrevMovementMode, uint8 PrevCustomMode = 0) override;
 
 private:
     // Internal methods
@@ -325,7 +349,8 @@ private:
     void UpdateProceduralIK(float DeltaTime);
     void UpdateLookAt(float DeltaTime);
     void ApplyMotionMatching(float DeltaTime);
-    void OnMovementModeChanged(EMovementMode PrevMovementMode, uint8 PrevCustomMode);
+
+    UFUNCTION()
     void OnMontageEnded(UAnimMontage* Montage, bool bInterrupted);
 
     // Input handlers
@@ -338,21 +363,3 @@ private:
     void OnTacklePressed();
     void OnSkillMovePressed();
 };
-
-// Movement modes for football
-UENUM(BlueprintType)
-namespace EFootballMovementMode
-{
-    enum Type
-    {
-        Walking UMETA(DisplayName = "Walking"),
-        Jogging UMETA(DisplayName = "Jogging"),
-        Sprinting UMETA(DisplayName = "Sprinting"),
-        Dribbling UMETA(DisplayName = "Dribbling"),
-        Shielding UMETA(DisplayName = "Shielding"),
-        Jockeying UMETA(DisplayName = "Jockeying"),
-        Sliding UMETA(DisplayName = "Sliding"),
-        Jumping UMETA(DisplayName = "Jumping"),
-        Falling UMETA(DisplayName = "Falling")
-    };
-}

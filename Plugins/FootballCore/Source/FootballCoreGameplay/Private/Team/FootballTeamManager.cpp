@@ -64,12 +64,14 @@ void AFootballTeamManager::SetPossession(EFootballTeamSide::Type Team, AFootball
     if (Team == EFootballTeamSide::Home && HomeTeam)
     {
         HomeTeam->OnPossessionGained();
-        if (AwayTeam) AwayTeam->OnPossessionLost();
+        if (AwayTeam)
+            AwayTeam->OnPossessionLost();
     }
     else if (Team == EFootballTeamSide::Away && AwayTeam)
     {
         AwayTeam->OnPossessionGained();
-        if (HomeTeam) HomeTeam->OnPossessionLost();
+        if (HomeTeam)
+            HomeTeam->OnPossessionLost();
     }
 }
 
@@ -83,9 +85,12 @@ AFootballTeam* AFootballTeamManager::GetTeam(EFootballTeamSide::Type Side) const
 {
     switch (Side)
     {
-        case EFootballTeamSide::Home: return HomeTeam;
-        case EFootballTeamSide::Away: return AwayTeam;
-        default: return nullptr;
+    case EFootballTeamSide::Home:
+        return HomeTeam;
+    case EFootballTeamSide::Away:
+        return AwayTeam;
+    default:
+        return nullptr;
     }
 }
 
@@ -94,12 +99,14 @@ void AFootballTeamManager::RecordShot(EFootballTeamSide::Type Team, bool bOnTarg
     if (Team == EFootballTeamSide::Home)
     {
         MatchStats.HomeShots++;
-        if (bOnTarget) MatchStats.HomeShotsOnTarget++;
+        if (bOnTarget)
+            MatchStats.HomeShotsOnTarget++;
     }
     else
     {
         MatchStats.AwayShots++;
-        if (bOnTarget) MatchStats.AwayShotsOnTarget++;
+        if (bOnTarget)
+            MatchStats.AwayShotsOnTarget++;
     }
 }
 
@@ -108,12 +115,14 @@ void AFootballTeamManager::RecordPass(EFootballTeamSide::Type Team, bool bComple
     if (Team == EFootballTeamSide::Home)
     {
         MatchStats.HomePasses++;
-        if (bCompleted) MatchStats.HomePassAccuracy++;
+        if (bCompleted)
+            MatchStats.HomePassAccuracy++;
     }
     else
     {
         MatchStats.AwayPasses++;
-        if (bCompleted) MatchStats.AwayPassAccuracy++;
+        if (bCompleted)
+            MatchStats.AwayPassAccuracy++;
     }
 }
 
@@ -155,19 +164,24 @@ void AFootballTeamManager::RecordCard(EFootballTeamSide::Type Team, bool bYellow
 {
     if (Team == EFootballTeamSide::Home)
     {
-        if (bYellow) MatchStats.HomeYellowCards++;
-        else MatchStats.HomeRedCards++;
+        if (bYellow)
+            MatchStats.HomeYellowCards++;
+        else
+            MatchStats.HomeRedCards++;
     }
     else
     {
-        if (bYellow) MatchStats.AwayYellowCards++;
-        else MatchStats.AwayRedCards++;
+        if (bYellow)
+            MatchStats.AwayYellowCards++;
+        else
+            MatchStats.AwayRedCards++;
     }
 }
 
 float AFootballTeamManager::GetPossessionPercent(EFootballTeamSide::Type Team) const
 {
-    float Total = TeamPossessionTime[EFootballTeamSide::Home] + TeamPossessionTime[EFootballTeamSide::Away] + TeamPossessionTime[EFootballTeamSide::Neutral];
+    float Total = TeamPossessionTime[EFootballTeamSide::Home] + TeamPossessionTime[EFootballTeamSide::Away] +
+                  TeamPossessionTime[EFootballTeamSide::Neutral];
     if (Total <= 0.0f)
     {
         return 0.0f;
@@ -253,9 +267,9 @@ void AFootballTeamManager::RestoreDeterministicState()
     Ball->SetDeterministicState(Pos, Vel, FFootballFixedVector(), HistoryFrame);
 }
 
-void AFootballTeamManager::OnBallKicked(const FVector& Impulse, const FVector& Spin, AActor* Instigator)
+void AFootballTeamManager::OnBallKicked(const FVector& Impulse, const FVector& Spin, AActor* KickInstigator)
 {
-    if (AFootballPlayerCharacter* Player = Cast<AFootballPlayerCharacter>(Instigator))
+    if (AFootballPlayerCharacter* Player = Cast<AFootballPlayerCharacter>(KickInstigator))
     {
         SetPossession(Player->GetTeamSide(), Player);
     }

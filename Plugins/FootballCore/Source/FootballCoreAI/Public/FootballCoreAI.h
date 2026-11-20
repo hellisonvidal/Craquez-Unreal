@@ -16,10 +16,7 @@ public:
         return FModuleManager::LoadModuleChecked<FFootballCoreAIModule>("FootballCoreAI");
     }
 
-    static bool IsAvailable()
-    {
-        return FModuleManager::Get().IsModuleLoaded("FootballCoreAI");
-    }
+    static bool IsAvailable() { return FModuleManager::Get().IsModuleLoaded("FootballCoreAI"); }
 };
 
 DECLARE_LOG_CATEGORY_EXTERN(LogFootballCoreAI, Log, All);

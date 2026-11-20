@@ -39,8 +39,8 @@ void UFootballMatchWidget::SetGameMode(AFootballGameMode* InGameMode)
     {
         HomeTeam = GameMode->GetHomeTeam();
         AwayTeam = GameMode->GetAwayTeam();
-        UpdateTeamNames();
-        UpdateTeamCrests();
+        RefreshTeamNames();
+        RefreshTeamCrests();
     }
 }
 
@@ -48,8 +48,8 @@ void UFootballMatchWidget::SetTeams(AFootballTeam* InHomeTeam, AFootballTeam* In
 {
     HomeTeam = InHomeTeam;
     AwayTeam = InAwayTeam;
-    UpdateTeamNames();
-    UpdateTeamCrests();
+    RefreshTeamNames();
+    RefreshTeamCrests();
 }
 
 void UFootballMatchWidget::UpdateScore(int32 HomeScore, int32 AwayScore)
@@ -74,7 +74,10 @@ void UFootballMatchWidget::UpdateMatchTime(float TimeRemaining)
     if (GameMode && MatchPhaseText)
     {
         EFootballMatchPhase::Type Phase = GameMode->GetCurrentPhase();
-        MatchPhaseText->SetText(FText::FromString(UEnum::GetDisplayValueAsText(Phase).ToString()));
+        const UEnum* PhaseEnum = FindObject<UEnum>(nullptr, TEXT("/Script/FootballCore.EFootballMatchPhase"));
+        FText PhaseText =
+            PhaseEnum ? PhaseEnum->GetDisplayNameTextByValue(static_cast<int64>(Phase)) : FText::GetEmpty();
+        MatchPhaseText->SetText(PhaseText);
     }
 }
 
@@ -119,7 +122,8 @@ void UFootballMatchWidget::ShowCard(EFootballTeamSide::Type Team, AFootballPlaye
     }
 }
 
-void UFootballMatchWidget::ShowSubstitution(EFootballTeamSide::Type Team, AFootballPlayerCharacter* PlayerOut, AFootballPlayerCharacter* PlayerIn)
+void UFootballMatchWidget::ShowSubstitution(EFootballTeamSide::Type Team, AFootballPlayerCharacter* PlayerOut,
+                                            AFootballPlayerCharacter* PlayerIn)
 {
     CreateSubstitutionEvent(Team, PlayerOut, PlayerIn);
 
@@ -179,7 +183,7 @@ void UFootballMatchWidget::UpdatePossessionDisplay()
     }
 }
 
-void UFootballMatchWidget::UpdateTeamNames()
+void UFootballMatchWidget::RefreshTeamNames()
 {
     if (HomeTeam && AwayTeam)
     {
@@ -187,7 +191,7 @@ void UFootballMatchWidget::UpdateTeamNames()
     }
 }
 
-void UFootballMatchWidget::UpdateTeamCrests()
+void UFootballMatchWidget::RefreshTeamCrests()
 {
     if (HomeTeam && AwayTeam)
     {
@@ -213,13 +217,16 @@ void UFootballMatchWidget::CreateGoalEvent(EFootballTeamSide::Type ScoringTeam, 
 
         // Remove after delay
         FTimerHandle TimerHandle;
-        GetWorld()->GetTimerManager().SetTimer(TimerHandle, [EventWidget]()
-        {
-            if (EventWidget)
+        GetWorld()->GetTimerManager().SetTimer(
+            TimerHandle,
+            [EventWidget]()
             {
-                EventWidget->RemoveFromParent();
-            }
-        }, 5.0f, false);
+                if (EventWidget)
+                {
+                    EventWidget->RemoveFromParent();
+                }
+            },
+            5.0f, false);
     }
 }
 
@@ -236,17 +243,21 @@ void UFootballMatchWidget::CreateCardEvent(EFootballTeamSide::Type Team, AFootba
         EventsContainer->AddChildToVerticalBox(EventWidget);
 
         FTimerHandle TimerHandle;
-        GetWorld()->GetTimerManager().SetTimer(TimerHandle, [EventWidget]()
-        {
-            if (EventWidget)
+        GetWorld()->GetTimerManager().SetTimer(
+            TimerHandle,
+            [EventWidget]()
             {
-                EventWidget->RemoveFromParent();
-            }
-        }, 5.0f, false);
+                if (EventWidget)
+                {
+                    EventWidget->RemoveFromParent();
+                }
+            },
+            5.0f, false);
     }
 }
 
-void UFootballMatchWidget::CreateSubstitutionEvent(EFootballTeamSide::Type Team, AFootballPlayerCharacter* PlayerOut, AFootballPlayerCharacter* PlayerIn)
+void UFootballMatchWidget::CreateSubstitutionEvent(EFootballTeamSide::Type Team, AFootballPlayerCharacter* PlayerOut,
+                                                   AFootballPlayerCharacter* PlayerIn)
 {
     if (!SubstitutionEventWidgetClass || !EventsContainer)
     {
@@ -259,13 +270,16 @@ void UFootballMatchWidget::CreateSubstitutionEvent(EFootballTeamSide::Type Team,
         EventsContainer->AddChildToVerticalBox(EventWidget);
 
         FTimerHandle TimerHandle;
-        GetWorld()->GetTimerManager().SetTimer(TimerHandle, [EventWidget]()
-        {
-            if (EventWidget)
+        GetWorld()->GetTimerManager().SetTimer(
+            TimerHandle,
+            [EventWidget]()
             {
-                EventWidget->RemoveFromParent();
-            }
-        }, 5.0f, false);
+                if (EventWidget)
+                {
+                    EventWidget->RemoveFromParent();
+                }
+            },
+            5.0f, false);
     }
 }
 

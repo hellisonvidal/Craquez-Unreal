@@ -60,17 +60,17 @@ protected:
     UPROPERTY(meta = (BindWidget))
     TObjectPtr<UImage> FatigueIndicator = nullptr;
 
-    UPROPERTY(meta = (BindWidget))
+    UPROPERTY(Transient, meta = (BindWidgetAnimOptional))
     TObjectPtr<UWidgetAnimation> FatiguePulseAnimation = nullptr;
 
     // UI Elements - Action Feedback
     UPROPERTY(meta = (BindWidget))
     TObjectPtr<UVerticalBox> ActionFeedbackContainer = nullptr;
 
-    UPROPERTY(meta = (BindWidget))
+    UPROPERTY(Transient, meta = (BindWidgetAnimOptional))
     TObjectPtr<UWidgetAnimation> ActionSuccessAnimation = nullptr;
 
-    UPROPERTY(meta = (BindWidget))
+    UPROPERTY(Transient, meta = (BindWidgetAnimOptional))
     TObjectPtr<UWidgetAnimation> ActionFailAnimation = nullptr;
 
     // UI Elements - Attributes
@@ -92,7 +92,7 @@ protected:
     FLinearColor StaminaLowColor = FLinearColor::Red;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Football|UI|Colors")
-    FLinearColor FatigueColor = FLinearColor::Orange;
+    FLinearColor FatigueColor = FLinearColor(1.0f, 0.5f, 0.0f, 1.0f);
 
 private:
     void UpdateStaminaDisplay(float StaminaPercent);

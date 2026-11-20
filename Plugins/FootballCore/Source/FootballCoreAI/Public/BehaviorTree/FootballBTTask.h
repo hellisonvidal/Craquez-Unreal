@@ -77,7 +77,7 @@ protected:
     bool bStopOnOverlap = true;
 
     UPROPERTY(EditAnywhere, Category = "Football|MoveToBall")
-    EFootballMovementMode::Type MovementMode = EFootballMovementMode::Jogging;
+    TEnumAsByte<EFootballMovementMode::Type> MovementMode = EFootballMovementMode::Jogging;
 };
 
 /**

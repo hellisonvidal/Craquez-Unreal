@@ -3,7 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "AI/StateTree.h"
+#include "StateTree.h"
+#include "Blueprint/StateTreeEvaluatorBlueprintBase.h"
+#include "Blueprint/StateTreeTaskBlueprintBase.h"
 #include "FootballCoreTypes.h"
 #include "FootballStateTree.generated.h"
 
@@ -22,97 +24,97 @@ struct FFootballStateTreeContext
     GENERATED_BODY()
 
     // References
-    UPROPERTY()
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Context")
     TObjectPtr<AFootballPlayerCharacter> Character = nullptr;
 
-    UPROPERTY()
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Context")
     TObjectPtr<UFootballBallComponent> Ball = nullptr;
 
-    UPROPERTY()
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Context")
     TObjectPtr<AFootballTeam> Team = nullptr;
 
-    UPROPERTY()
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Context")
     TObjectPtr<AFootballTeam> OpponentTeam = nullptr;
 
-    UPROPERTY()
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Context")
     TObjectPtr<UFootballTacticalComponent> Tactical = nullptr;
 
     // Ball State
-    UPROPERTY()
-    EFootballBallState::Type BallState = EFootballBallState::Free;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Context")
+    TEnumAsByte<EFootballBallState::Type> BallState = EFootballBallState::Free;
 
-    UPROPERTY()
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Context")
     FVector BallPosition = FVector::ZeroVector;
 
-    UPROPERTY()
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Context")
     FVector BallVelocity = FVector::ZeroVector;
 
-    UPROPERTY()
-    AActor* BallPossessor = nullptr;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Context")
+    TObjectPtr<AActor> BallPossessor = nullptr;
 
     // Player State
-    UPROPERTY()
-    EFootballPlayerRole::Type PlayerRole = EFootballPlayerRole::CentralMidfielder;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Context")
+    TEnumAsByte<EFootballPlayerRole::Type> PlayerRole = EFootballPlayerRole::CentralMidfielder;
 
-    UPROPERTY()
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Context")
     FVector PlayerPosition = FVector::ZeroVector;
 
-    UPROPERTY()
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Context")
     FVector PlayerVelocity = FVector::ZeroVector;
 
-    UPROPERTY()
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Context")
     float Stamina = 100.0f;
 
-    UPROPERTY()
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Context")
     bool bHasBall = false;
 
-    UPROPERTY()
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Context")
     bool bIsFatigued = false;
 
     // Team State
-    UPROPERTY()
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Context")
     bool bTeamHasPossession = false;
 
-    UPROPERTY()
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Context")
     float TeamPossessionTime = 0.0f;
 
-    UPROPERTY()
-    EFootballMatchPhase::Type MatchPhase = EFootballMatchPhase::OpenPlay;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Context")
+    TEnumAsByte<EFootballMatchPhase::Type> MatchPhase = EFootballMatchPhase::OpenPlay;
 
     // Tactical
-    UPROPERTY()
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Context")
     float PressingIntensity = 50.0f;
 
-    UPROPERTY()
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Context")
     float DefensiveLine = 50.0f;
 
-    UPROPERTY()
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Context")
     float InterceptionThreshold = 0.7f;
 
     // Distances
-    UPROPERTY()
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Context")
     float DistanceToBall = 0.0f;
 
-    UPROPERTY()
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Context")
     float DistanceToGoal = 0.0f;
 
-    UPROPERTY()
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Context")
     float DistanceToNearestOpponent = 0.0f;
 
-    UPROPERTY()
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Context")
     float DistanceToNearestTeammate = 0.0f;
 
     // Interception
-    UPROPERTY()
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Context")
     FVector PredictedInterceptPoint = FVector::ZeroVector;
 
-    UPROPERTY()
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Context")
     float TimeToIntercept = 0.0f;
 
-    UPROPERTY()
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Context")
     bool bCanIntercept = false;
 
-    UPROPERTY()
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Context")
     float InterceptConfidence = 0.0f;
 };
 
@@ -120,12 +122,16 @@ struct FFootballStateTreeContext
  * State Tree Evaluators
  */
 UCLASS()
-class FOOTBALLCOREAI_API UFootballStateTreeEvaluator : public UStateTreeEvaluatorBase
+class FOOTBALLCOREAI_API UFootballStateTreeEvaluator : public UStateTreeEvaluatorBlueprintBase
 {
     GENERATED_BODY()
 
 public:
-    virtual void Evaluate(FStateTreeExecutionContext& Context, float DeltaTime) const override;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Context")
+    FFootballStateTreeContext FootballContext;
+
+protected:
+    virtual void Tick(FStateTreeExecutionContext& Context, const float DeltaTime) override;
 };
 
 /**
@@ -136,8 +142,8 @@ class FOOTBALLCOREAI_API UBallStateEvaluator : public UFootballStateTreeEvaluato
 {
     GENERATED_BODY()
 
-public:
-    virtual void Evaluate(FStateTreeExecutionContext& Context, float DeltaTime) const override;
+protected:
+    virtual void Tick(FStateTreeExecutionContext& Context, const float DeltaTime) override;
 };
 
 /**
@@ -148,8 +154,8 @@ class FOOTBALLCOREAI_API UTacticalEvaluator : public UFootballStateTreeEvaluator
 {
     GENERATED_BODY()
 
-public:
-    virtual void Evaluate(FStateTreeExecutionContext& Context, float DeltaTime) const override;
+protected:
+    virtual void Tick(FStateTreeExecutionContext& Context, const float DeltaTime) override;
 };
 
 /**
@@ -161,8 +167,6 @@ class FOOTBALLCOREAI_API UInterceptionEvaluator : public UFootballStateTreeEvalu
     GENERATED_BODY()
 
 public:
-    virtual void Evaluate(FStateTreeExecutionContext& Context, float DeltaTime) const override;
-
     UPROPERTY(EditAnywhere, Category = "Interception")
     float MaxInterceptDistance = 5000.0f;
 
@@ -171,20 +175,28 @@ public:
 
     UPROPERTY(EditAnywhere, Category = "Interception")
     float MinInterceptConfidence = 0.6f;
+
+protected:
+    virtual void Tick(FStateTreeExecutionContext& Context, const float DeltaTime) override;
 };
 
 /**
  * State Tree Tasks
  */
 UCLASS()
-class FOOTBALLCOREAI_API UFootballStateTreeTask : public UStateTreeTaskBase
+class FOOTBALLCOREAI_API UFootballStateTreeTask : public UStateTreeTaskBlueprintBase
 {
     GENERATED_BODY()
 
 public:
-    virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
-    virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, float DeltaTime) const override;
-    virtual void ExitState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Context")
+    FFootballStateTreeContext FootballContext;
+
+protected:
+    virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context,
+                                           const FStateTreeTransitionResult& Transition) override;
+    virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) override;
+    virtual void ExitState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) override;
 };
 
 /**
@@ -195,9 +207,10 @@ class FOOTBALLCOREAI_API UIdleTask : public UFootballStateTreeTask
 {
     GENERATED_BODY()
 
-public:
-    virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
-    virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, float DeltaTime) const override;
+protected:
+    virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context,
+                                           const FStateTreeTransitionResult& Transition) override;
+    virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) override;
 };
 
 /**
@@ -209,11 +222,13 @@ class FOOTBALLCOREAI_API UMoveToFormationTask : public UFootballStateTreeTask
     GENERATED_BODY()
 
 public:
-    virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
-    virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, float DeltaTime) const override;
-
     UPROPERTY(EditAnywhere, Category = "Formation")
     float PositionTolerance = 200.0f;
+
+protected:
+    virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context,
+                                           const FStateTreeTransitionResult& Transition) override;
+    virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) override;
 };
 
 /**
@@ -225,9 +240,6 @@ class FOOTBALLCOREAI_API UPressTask : public UFootballStateTreeTask
     GENERATED_BODY()
 
 public:
-    virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
-    virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, float DeltaTime) const override;
-
     UPROPERTY(EditAnywhere, Category = "Press")
     float PressDistance = 300.0f;
 
@@ -236,6 +248,11 @@ public:
 
     UPROPERTY(EditAnywhere, Category = "Press")
     bool bForceWeakFoot = true;
+
+protected:
+    virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context,
+                                           const FStateTreeTransitionResult& Transition) override;
+    virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) override;
 };
 
 /**
@@ -247,14 +264,16 @@ class FOOTBALLCOREAI_API UInterceptTask : public UFootballStateTreeTask
     GENERATED_BODY()
 
 public:
-    virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
-    virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, float DeltaTime) const override;
-
     UPROPERTY(EditAnywhere, Category = "Intercept")
     float PredictionTime = 2.0f;
 
     UPROPERTY(EditAnywhere, Category = "Intercept")
     float MaxInterceptDistance = 5000.0f;
+
+protected:
+    virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context,
+                                           const FStateTreeTransitionResult& Transition) override;
+    virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) override;
 };
 
 /**
@@ -266,11 +285,13 @@ class FOOTBALLCOREAI_API USupportTask : public UFootballStateTreeTask
     GENERATED_BODY()
 
 public:
-    virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
-    virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, float DeltaTime) const override;
-
     UPROPERTY(EditAnywhere, Category = "Support")
     float SupportDistance = 1500.0f;
+
+protected:
+    virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context,
+                                           const FStateTreeTransitionResult& Transition) override;
+    virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) override;
 };
 
 /**
@@ -282,9 +303,6 @@ class FOOTBALLCOREAI_API UMarkTask : public UFootballStateTreeTask
     GENERATED_BODY()
 
 public:
-    virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
-    virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, float DeltaTime) const override;
-
     UPROPERTY(EditAnywhere, Category = "Mark")
     float MarkDistance = 200.0f;
 
@@ -293,6 +311,11 @@ public:
 
     UPROPERTY(EditAnywhere, Category = "Mark")
     bool bBallSide = true;
+
+protected:
+    virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context,
+                                           const FStateTreeTransitionResult& Transition) override;
+    virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) override;
 };
 
 /**
@@ -303,9 +326,10 @@ class FOOTBALLCOREAI_API UAttackTask : public UFootballStateTreeTask
 {
     GENERATED_BODY()
 
-public:
-    virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
-    virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, float DeltaTime) const override;
+protected:
+    virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context,
+                                           const FStateTreeTransitionResult& Transition) override;
+    virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) override;
 };
 
 /**
@@ -316,9 +340,10 @@ class FOOTBALLCOREAI_API UDefendTask : public UFootballStateTreeTask
 {
     GENERATED_BODY()
 
-public:
-    virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
-    virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, float DeltaTime) const override;
+protected:
+    virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context,
+                                           const FStateTreeTransitionResult& Transition) override;
+    virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) override;
 };
 
 /**
@@ -329,9 +354,10 @@ class FOOTBALLCOREAI_API UGoalkeeperTask : public UFootballStateTreeTask
 {
     GENERATED_BODY()
 
-public:
-    virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
-    virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, float DeltaTime) const override;
+protected:
+    virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context,
+                                           const FStateTreeTransitionResult& Transition) override;
+    virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) override;
 };
 
 /**
@@ -343,9 +369,11 @@ class FOOTBALLCOREAI_API USetPieceTask : public UFootballStateTreeTask
     GENERATED_BODY()
 
 public:
-    virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
-    virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, float DeltaTime) const override;
-
     UPROPERTY(EditAnywhere, Category = "SetPiece")
-    EFootballMatchPhase::Type SetPieceType = EFootballMatchPhase::SetPiece_FreeKick;
+    TEnumAsByte<EFootballMatchPhase::Type> SetPieceType = EFootballMatchPhase::SetPiece_FreeKick;
+
+protected:
+    virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context,
+                                           const FStateTreeTransitionResult& Transition) override;
+    virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) override;
 };

@@ -1,6 +1,7 @@
 // Copyright 2024 Craquez. All Rights Reserved.
 
 #include "Deterministic/FootballDeterministicReplication.h"
+#include "FootballCoreNetworking.h"
 #include "BallPhysics/FootballBallComponent.h"
 #include "Player/FootballPlayerCharacter.h"
 #include "Team/FootballTeam.h"
@@ -34,7 +35,8 @@ void UFootballDeterministicReplicationComponent::BeginPlay()
     StateHistory.Reserve(StateHistorySize);
 }
 
-void UFootballDeterministicReplicationComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+void UFootballDeterministicReplicationComponent::TickComponent(float DeltaTime, ELevelTick TickType,
+                                                               FActorComponentTickFunction* ThisTickFunction)
 {
     Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
@@ -118,11 +120,13 @@ void UFootballDeterministicReplicationComponent::ApplyState(int32 FrameNumber)
         {
             if (BallComponent)
             {
-                BallComponent->SetDeterministicState(State.Position, State.Velocity, State.AngularVelocity, State.FrameNumber);
+                BallComponent->SetDeterministicState(State.Position, State.Velocity, State.AngularVelocity,
+                                                     State.FrameNumber);
             }
             else if (PlayerCharacter)
             {
-                PlayerCharacter->Server_SetDeterministicState(State.Position, State.Velocity, State.Rotation, State.FrameNumber);
+                PlayerCharacter->Server_SetDeterministicState(State.Position, State.Velocity, State.Rotation,
+                                                              State.FrameNumber);
             }
             break;
         }
@@ -143,13 +147,19 @@ void UFootballDeterministicReplicationComponent::RollbackToFrame(int32 FrameNumb
     }
 }
 
-void UFootballDeterministicReplicationComponent::Server_SendState(int32 FrameNumber, const FFootballFixedVector& Position, const FFootballFixedVector& Velocity, const FFootballFixedRotator& Rotation)
+void UFootballDeterministicReplicationComponent::Server_SendState(int32 FrameNumber,
+                                                                  const FFootballFixedVector& Position,
+                                                                  const FFootballFixedVector& Velocity,
+                                                                  const FFootballFixedRotator& Rotation)
 {
     // Server sends authoritative state to clients
     // This would be called via RPC in a real implementation
 }
 
-void UFootballDeterministicReplicationComponent::Client_ReceiveState(int32 FrameNumber, const FFootballFixedVector& Position, const FFootballFixedVector& Velocity, const FFootballFixedRotator& Rotation)
+void UFootballDeterministicReplicationComponent::Client_ReceiveState(int32 FrameNumber,
+                                                                     const FFootballFixedVector& Position,
+                                                                     const FFootballFixedVector& Velocity,
+                                                                     const FFootballFixedRotator& Rotation)
 {
     // Client receives state from server
     FFootballDeterministicState State(FrameNumber);
@@ -207,7 +217,8 @@ void UFootballDeterministicReplicationComponent::ReplicateBallState(int32 FrameN
     }
 }
 
-void UFootballDeterministicReplicationComponent::ReplicatePlayerState(AFootballPlayerCharacter* Player, int32 FrameNumber)
+void UFootballDeterministicReplicationComponent::ReplicatePlayerState(AFootballPlayerCharacter* Player,
+                                                                      int32 FrameNumber)
 {
     if (Player && Player->HasAuthority())
     {
@@ -316,7 +327,8 @@ void UFootballDeterministicReplicationComponent::ReceiveStateFromServer()
     // Handled by Client_ReceiveState RPC
 }
 
-bool UFootballDeterministicReplicationComponent::StatesMatch(const FFootballDeterministicState& A, const FFootballDeterministicState& B) const
+bool UFootballDeterministicReplicationComponent::StatesMatch(const FFootballDeterministicState& A,
+                                                             const FFootballDeterministicState& B) const
 {
     float PosDiff = FVector::Dist(A.Position.ToVector(), B.Position.ToVector());
     float VelDiff = FVector::Dist(A.Velocity.ToVector(), B.Velocity.ToVector());
@@ -356,7 +368,8 @@ void AFootballDeterministicManager::Tick(float DeltaTime)
     }
 }
 
-void AFootballDeterministicManager::RegisterEntity(AActor* Entity, UFootballDeterministicReplicationComponent* ReplicationComponent)
+void AFootballDeterministicManager::RegisterEntity(AActor* Entity,
+                                                   UFootballDeterministicReplicationComponent* ReplicationComponent)
 {
     if (Entity && ReplicationComponent)
     {
@@ -443,7 +456,7 @@ void AFootballDeterministicManager::UpdateEntities(float DeltaTime)
     {
         if (Pair.Value && Pair.Key)
         {
-            Pair.Value->TickComponent(DeltaTime, TG_PrePhysics, nullptr);
+            Pair.Value->TickComponent(DeltaTime, LEVELTICK_All, nullptr);
         }
     }
 }
@@ -473,7 +486,8 @@ void UFootballNetworkPredictionComponent::BeginPlay()
     PredictedStates.Reserve(60); // 1 second at 60Hz
 }
 
-void UFootballNetworkPredictionComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+void UFootballNetworkPredictionComponent::TickComponent(float DeltaTime, ELevelTick TickType,
+                                                        FActorComponentTickFunction* ThisTickFunction)
 {
     Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
@@ -498,7 +512,7 @@ void UFootballNetworkPredictionComponent::PredictMovement(float DeltaTime)
     // Client-side prediction: simulate movement locally
     // Store predicted state for reconciliation
     FFootballDeterministicState PredictedState;
-    PredictedState.FrameNumber = GetWorld()->GetFrameCount();
+    PredictedState.FrameNumber = static_cast<int32>(GFrameCounter);
     PredictedState.Position = FFootballFixedVector::FromVector(GetOwner()->GetActorLocation());
     PredictedState.Velocity = FFootballFixedVector::FromVector(GetOwner()->GetVelocity());
     PredictedState.Rotation = FFootballFixedRotator::FromRotator(GetOwner()->GetActorRotation());
@@ -535,10 +549,8 @@ void UFootballNetworkPredictionComponent::ReconcileState()
         if (PosDiff > MaxPredictionError || VelDiff > MaxPredictionError * 10.0f)
         {
             // Significant divergence - snap to server state
-            GetOwner()->SetActorLocationAndRotation(
-                LastConfirmedState.Position.ToVector(),
-                LastConfirmedState.Rotation.ToRotator()
-            );
+            GetOwner()->SetActorLocationAndRotation(LastConfirmedState.Position.ToVector(),
+                                                    LastConfirmedState.Rotation.ToRotator());
 
             // Clear predicted states
             PredictedStates.Empty();
@@ -564,7 +576,8 @@ void UFootballNetworkPredictionComponent::InterpolateToServerState()
     FVector CurrentPos = GetOwner()->GetActorLocation();
     FVector TargetPos = LastConfirmedState.Position.ToVector();
 
-    FVector NewPos = FMath::VInterpTo(CurrentPos, TargetPos, GetWorld()->GetDeltaSeconds(), ReconciliationSpeed / 100.0f);
+    FVector NewPos =
+        FMath::VInterpTo(CurrentPos, TargetPos, GetWorld()->GetDeltaSeconds(), ReconciliationSpeed / 100.0f);
     GetOwner()->SetActorLocation(NewPos);
 
     // Check if close enough
@@ -601,10 +614,7 @@ void UFootballLagCompensationComponent::RewindToTime(float ServerTime, float Cli
 
     if (RewindState.IsValid())
     {
-        GetOwner()->SetActorLocationAndRotation(
-            RewindState.Position.ToVector(),
-            RewindState.Rotation.ToRotator()
-        );
+        GetOwner()->SetActorLocationAndRotation(RewindState.Position.ToVector(), RewindState.Rotation.ToRotator());
     }
 }
 
@@ -614,14 +624,12 @@ void UFootballLagCompensationComponent::RestoreState()
     if (StateHistory.Num() > 0)
     {
         const FFootballDeterministicState& Latest = StateHistory.Last();
-        GetOwner()->SetActorLocationAndRotation(
-            Latest.Position.ToVector(),
-            Latest.Rotation.ToRotator()
-        );
+        GetOwner()->SetActorLocationAndRotation(Latest.Position.ToVector(), Latest.Rotation.ToRotator());
     }
 }
 
-bool UFootballLagCompensationComponent::CheckHitAtTime(AActor* Target, float ServerTime, float ClientPing, FHitResult& OutHit)
+bool UFootballLagCompensationComponent::CheckHitAtTime(AActor* Target, float ServerTime, float ClientPing,
+                                                       FHitResult& OutHit)
 {
     if (!Target)
     {
@@ -652,7 +660,7 @@ bool UFootballLagCompensationComponent::CheckHitAtTime(AActor* Target, float Ser
 void UFootballLagCompensationComponent::RecordState()
 {
     FFootballDeterministicState State;
-    State.FrameNumber = GetWorld()->GetFrameCount();
+    State.FrameNumber = static_cast<int32>(GFrameCounter);
     State.Position = FFootballFixedVector::FromVector(GetOwner()->GetActorLocation());
     State.Velocity = FFootballFixedVector::FromVector(GetOwner()->GetVelocity());
     State.Rotation = FFootballFixedRotator::FromRotator(GetOwner()->GetActorRotation());

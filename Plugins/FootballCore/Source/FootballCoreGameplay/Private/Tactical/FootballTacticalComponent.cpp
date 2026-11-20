@@ -1,7 +1,9 @@
 // Copyright 2024 Craquez. All Rights Reserved.
 
 #include "Tactical/FootballTacticalComponent.h"
+#include "Algo/Sort.h"
 #include "Team/FootballTeam.h"
+#include "Team/FootballTeamManager.h"
 #include "Player/FootballPlayerCharacter.h"
 #include "BallPhysics/FootballBallComponent.h"
 #include "Kismet/KismetMathLibrary.h"
@@ -18,7 +20,8 @@ void UFootballTacticalComponent::BeginPlay()
     Super::BeginPlay();
 }
 
-void UFootballTacticalComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+void UFootballTacticalComponent::TickComponent(float DeltaTime, ELevelTick TickType,
+                                               FActorComponentTickFunction* ThisTickFunction)
 {
     Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
@@ -76,7 +79,8 @@ void UFootballTacticalComponent::Initialize(const FFootballTacticalInstructions&
     Instructions.Add(FGameplayTag::RequestGameplayTag("Tactic.OffsideTrap"), InTactics.OffsideTrap);
     Instructions.Add(FGameplayTag::RequestGameplayTag("Tactic.GK_RushOut"), InTactics.GK_RushOut);
     Instructions.Add(FGameplayTag::RequestGameplayTag("Tactic.GK_Distribution"), InTactics.GK_Distribution);
-    Instructions.Add(FGameplayTag::RequestGameplayTag("Tactic.CounterAttack"), InTactics.BuildUpPlay < 30.0f ? 80.0f : 20.0f);
+    Instructions.Add(FGameplayTag::RequestGameplayTag("Tactic.CounterAttack"),
+                     InTactics.BuildUpPlay < 30.0f ? 80.0f : 20.0f);
 }
 
 void UFootballTacticalComponent::UpdateTactics(const FFootballTacticalInstructions& InTactics)
@@ -133,22 +137,22 @@ void UFootballTacticalComponent::UpdatePlayerPosition(AFootballPlayerCharacter* 
         // Adjust speed based on role
         switch (Role)
         {
-            case EFootballPlayerRole::Goalkeeper:
-                BaseSpeed = 300.0f;
-                break;
-            case EFootballPlayerRole::CenterBack:
-            case EFootballPlayerRole::LeftBack:
-            case EFootballPlayerRole::RightBack:
-                BaseSpeed = 350.0f;
-                break;
-            case EFootballPlayerRole::Striker:
-            case EFootballPlayerRole::LeftWinger:
-            case EFootballPlayerRole::RightWinger:
-                BaseSpeed = 500.0f;
-                break;
-            default:
-                BaseSpeed = 400.0f;
-                break;
+        case EFootballPlayerRole::Goalkeeper:
+            BaseSpeed = 300.0f;
+            break;
+        case EFootballPlayerRole::CenterBack:
+        case EFootballPlayerRole::LeftBack:
+        case EFootballPlayerRole::RightBack:
+            BaseSpeed = 350.0f;
+            break;
+        case EFootballPlayerRole::Striker:
+        case EFootballPlayerRole::LeftWinger:
+        case EFootballPlayerRole::RightWinger:
+            BaseSpeed = 500.0f;
+            break;
+        default:
+            BaseSpeed = 400.0f;
+            break;
         }
 
         // Apply player attributes
@@ -197,10 +201,8 @@ FVector UFootballTacticalComponent::CalculateDefensivePosition(AFootballPlayerCh
     }
 
     // Defensive players drop deeper
-    if (Role == EFootballPlayerRole::CenterBack ||
-        Role == EFootballPlayerRole::LeftBack ||
-        Role == EFootballPlayerRole::RightBack ||
-        Role == EFootballPlayerRole::DefensiveMidfielder)
+    if (Role == EFootballPlayerRole::CenterBack || Role == EFootballPlayerRole::LeftBack ||
+        Role == EFootballPlayerRole::RightBack || Role == EFootballPlayerRole::DefensiveMidfielder)
     {
         BasePos.X += LineOffset * 0.8f;
     }
@@ -251,10 +253,8 @@ FVector UFootballTacticalComponent::CalculateAttackingPosition(AFootballPlayerCh
     }
 
     // Attacking players push higher
-    if (Role == EFootballPlayerRole::Striker ||
-        Role == EFootballPlayerRole::CenterForward ||
-        Role == EFootballPlayerRole::LeftWinger ||
-        Role == EFootballPlayerRole::RightWinger ||
+    if (Role == EFootballPlayerRole::Striker || Role == EFootballPlayerRole::CenterForward ||
+        Role == EFootballPlayerRole::LeftWinger || Role == EFootballPlayerRole::RightWinger ||
         Role == EFootballPlayerRole::AttackingMidfielder)
     {
         BasePos.X += LineOffset;
@@ -266,13 +266,11 @@ FVector UFootballTacticalComponent::CalculateAttackingPosition(AFootballPlayerCh
 
     // Width adjustment
     float Width = GetInstruction(FGameplayTag::RequestGameplayTag("Tactic.Width"));
-    if (Role == EFootballPlayerRole::LeftWinger ||
-        Role == EFootballPlayerRole::LeftBack)
+    if (Role == EFootballPlayerRole::LeftWinger || Role == EFootballPlayerRole::LeftBack)
     {
         BasePos.Y *= (Width / 50.0f);
     }
-    else if (Role == EFootballPlayerRole::RightWinger ||
-             Role == EFootballPlayerRole::RightBack)
+    else if (Role == EFootballPlayerRole::RightWinger || Role == EFootballPlayerRole::RightBack)
     {
         BasePos.Y *= (Width / 50.0f);
     }
@@ -318,18 +316,15 @@ FVector UFootballTacticalComponent::CalculateSupportPosition(AFootballPlayerChar
         // Move to side/behind carrier for pass option
         FVector Right = FVector::CrossProduct(ToCarrier.GetSafeNormal(), FVector::UpVector);
 
-        if (Role == EFootballPlayerRole::CentralMidfielder ||
-            Role == EFootballPlayerRole::AttackingMidfielder)
-            {
+        if (Role == EFootballPlayerRole::CentralMidfielder || Role == EFootballPlayerRole::AttackingMidfielder)
+        {
             SupportPos = CarrierPos + Right * 1000.0f - ToCarrier.GetSafeNormal() * 500.0f;
         }
-        else if (Role == EFootballPlayerRole::LeftWinger ||
-                 Role == EFootballPlayerRole::RightWinger)
+        else if (Role == EFootballPlayerRole::LeftWinger || Role == EFootballPlayerRole::RightWinger)
         {
             SupportPos = CarrierPos + Right * 1500.0f;
         }
-        else if (Role == EFootballPlayerRole::Striker ||
-                 Role == EFootballPlayerRole::CenterForward)
+        else if (Role == EFootballPlayerRole::Striker || Role == EFootballPlayerRole::CenterForward)
         {
             SupportPos = CarrierPos + ToCarrier.GetSafeNormal() * 1000.0f; // Ahead for through ball
         }
@@ -506,7 +501,8 @@ float UFootballTacticalComponent::CalculateOffsideLine() const
     return SecondLastDefender;
 }
 
-TArray<AFootballPlayerCharacter*> UFootballTacticalComponent::GetPlayersInZone(FVector ZoneCenter, float ZoneRadius) const
+TArray<AFootballPlayerCharacter*> UFootballTacticalComponent::GetPlayersInZone(FVector ZoneCenter,
+                                                                               float ZoneRadius) const
 {
     TArray<AFootballPlayerCharacter*> Result;
     if (!Team)
@@ -582,7 +578,8 @@ AFootballPlayerCharacter* UFootballTacticalComponent::FindBestPassTarget(AFootba
     return BestTarget;
 }
 
-float UFootballTacticalComponent::CalculatePassScore(AFootballPlayerCharacter* Passer, AFootballPlayerCharacter* Receiver) const
+float UFootballTacticalComponent::CalculatePassScore(AFootballPlayerCharacter* Passer,
+                                                     AFootballPlayerCharacter* Receiver) const
 {
     if (!Passer || !Receiver)
     {
@@ -595,7 +592,8 @@ float UFootballTacticalComponent::CalculatePassScore(AFootballPlayerCharacter* P
 
     // Distance factor (closer is easier, but too close is wasteful)
     float DistanceFactor = 1.0f - FMath::Clamp(Distance / MaxPassDist, 0.0f, 1.0f);
-    if (Distance < 500.0f) DistanceFactor *= 0.5f;
+    if (Distance < 500.0f)
+        DistanceFactor *= 0.5f;
 
     // Receiver space factor (how much space they have)
     float SpaceFactor = 1.0f;
@@ -635,7 +633,8 @@ AFootballPlayerCharacter* UFootballTacticalComponent::FindBestInterceptTarget() 
     return nullptr;
 }
 
-FVector UFootballTacticalComponent::CalculateInterceptPoint(UFootballBallComponent* Ball, AFootballPlayerCharacter* Interceptor) const
+FVector UFootballTacticalComponent::CalculateInterceptPoint(UFootballBallComponent* Ball,
+                                                            AFootballPlayerCharacter* Interceptor) const
 {
     if (!Ball || !Interceptor)
     {
@@ -676,22 +675,23 @@ void UFootballTacticalComponent::SetupCornerRoutine(bool bAttacking)
     {
         // Attacking corner positions
         Positions.Add(FVector(5000, -2000, 0)); // Near post runner
-        Positions.Add(FVector(5000, 0, 0));      // Penalty spot
-        Positions.Add(FVector(5000, 2000, 0));   // Far post
-        Positions.Add(FVector(4000, -3000, 0));  // Edge of box
-        Positions.Add(FVector(4000, 3000, 0));   // Edge of box far
+        Positions.Add(FVector(5000, 0, 0));     // Penalty spot
+        Positions.Add(FVector(5000, 2000, 0));  // Far post
+        Positions.Add(FVector(4000, -3000, 0)); // Edge of box
+        Positions.Add(FVector(4000, 3000, 0));  // Edge of box far
     }
     else
     {
         // Defending corner positions
         Positions.Add(FVector(-5000, -1500, 0)); // Near post
-        Positions.Add(FVector(-5000, 0, 0));      // Goal line
+        Positions.Add(FVector(-5000, 0, 0));     // Goal line
         Positions.Add(FVector(-5000, 1500, 0));  // Far post
         Positions.Add(FVector(-4000, -3000, 0)); // Edge of box
         Positions.Add(FVector(-4000, 3000, 0));  // Edge of box
     }
 
-    SetPiecePositions.Add(bAttacking ? EFootballMatchPhase::SetPiece_Corner : EFootballMatchPhase::SetPiece_Corner, Positions);
+    SetPiecePositions.Add(bAttacking ? EFootballMatchPhase::SetPiece_Corner : EFootballMatchPhase::SetPiece_Corner,
+                          Positions);
 }
 
 void UFootballTacticalComponent::SetupFreeKickRoutine(FVector BallPosition, bool bAttacking)
@@ -822,15 +822,17 @@ void UFootballTacticalComponent::ApplyPressing(float DeltaTime)
 
     // Find closest players to ball and make them press
     TArray<AFootballPlayerCharacter*> Players = Team->GetAllPlayers();
-    Players.Sort([Ball](AFootballPlayerCharacter* A, AFootballPlayerCharacter* B)
-    {
-        if (!A || !B || !Ball) return false;
-        return FVector::Dist(A->GetActorLocation(), Ball->GetComponentLocation()) <
-               FVector::Dist(B->GetActorLocation(), Ball->GetComponentLocation());
-    });
+    Algo::Sort(Players,
+               [Ball](AFootballPlayerCharacter* A, AFootballPlayerCharacter* B)
+               {
+                   if (!A || !B || !Ball)
+                       return false;
+                   return FVector::Dist(A->GetActorLocation(), Ball->GetComponentLocation()) <
+                          FVector::Dist(B->GetActorLocation(), Ball->GetComponentLocation());
+               });
 
     int32 PressingPlayers = FMath::RoundToInt(PressingIntensity / 100.0f * 4.0f); // 0-4 players press
-    pressingsPlayers = FMath::Clamp(PressingPlayers, 1, 4);
+    PressingPlayers = FMath::Clamp(PressingPlayers, 1, 4);
 
     for (int32 i = 0; i < PressingPlayers && i < Players.Num(); i++)
     {
@@ -929,25 +931,25 @@ float UFootballTacticalComponent::GetPlayerRoleWeight(EFootballPlayerRole::Type 
 {
     switch (Role)
     {
-        case EFootballPlayerRole::Goalkeeper:
-            return bAttacking ? 0.1f : 1.0f;
-        case EFootballPlayerRole::CenterBack:
-        case EFootballPlayerRole::LeftBack:
-        case EFootballPlayerRole::RightBack:
-            return bAttacking ? 0.3f : 1.0f;
-        case EFootballPlayerRole::DefensiveMidfielder:
-            return bAttacking ? 0.5f : 0.9f;
-        case EFootballPlayerRole::CentralMidfielder:
-            return 0.8f;
-        case EFootballPlayerRole::AttackingMidfielder:
-            return bAttacking ? 1.0f : 0.4f;
-        case EFootballPlayerRole::LeftWinger:
-        case EFootballPlayerRole::RightWinger:
-            return bAttacking ? 1.0f : 0.3f;
-        case EFootballPlayerRole::Striker:
-        case EFootballPlayerRole::CenterForward:
-            return bAttacking ? 1.0f : 0.2f;
-        default:
-            return 0.5f;
+    case EFootballPlayerRole::Goalkeeper:
+        return bAttacking ? 0.1f : 1.0f;
+    case EFootballPlayerRole::CenterBack:
+    case EFootballPlayerRole::LeftBack:
+    case EFootballPlayerRole::RightBack:
+        return bAttacking ? 0.3f : 1.0f;
+    case EFootballPlayerRole::DefensiveMidfielder:
+        return bAttacking ? 0.5f : 0.9f;
+    case EFootballPlayerRole::CentralMidfielder:
+        return 0.8f;
+    case EFootballPlayerRole::AttackingMidfielder:
+        return bAttacking ? 1.0f : 0.4f;
+    case EFootballPlayerRole::LeftWinger:
+    case EFootballPlayerRole::RightWinger:
+        return bAttacking ? 1.0f : 0.3f;
+    case EFootballPlayerRole::Striker:
+    case EFootballPlayerRole::CenterForward:
+        return bAttacking ? 1.0f : 0.2f;
+    default:
+        return 0.5f;
     }
 }

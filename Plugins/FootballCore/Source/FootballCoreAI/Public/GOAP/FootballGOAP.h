@@ -14,13 +14,14 @@ class UFootballTacticalComponent;
 UENUM(BlueprintType)
 namespace EGOAPActionCost
 {
-    enum Type
-    {
-        Low = 1,
-        Medium = 5,
-        High = 10,
-        VeryHigh = 20
-    };
+enum Type : int
+{
+    None = 0 UMETA(Hidden),
+    Low = 1,
+    Medium = 5,
+    High = 10,
+    VeryHigh = 20
+};
 }
 
 /**
@@ -106,6 +107,33 @@ struct FGOAPWorldState
 
     // Combine states
     FGOAPWorldState Combine(const FGOAPWorldState& Other) const;
+
+    friend uint32 GetTypeHash(const FGOAPWorldState& State)
+    {
+        uint32 Bits = 0;
+        Bits |= (State.bHasBall ? 1u << 0 : 0u);
+        Bits |= (State.bBallInAir ? 1u << 1 : 0u);
+        Bits |= (State.bBallInPossession ? 1u << 2 : 0u);
+        Bits |= (State.bBallNearGoal ? 1u << 3 : 0u);
+        Bits |= (State.bBallInDefensiveThird ? 1u << 4 : 0u);
+        Bits |= (State.bBallInAttackingThird ? 1u << 5 : 0u);
+        Bits |= (State.bNearBall ? 1u << 6 : 0u);
+        Bits |= (State.bNearGoal ? 1u << 7 : 0u);
+        Bits |= (State.bMarked ? 1u << 8 : 0u);
+        Bits |= (State.bHasSupport ? 1u << 9 : 0u);
+        Bits |= (State.bCanShoot ? 1u << 10 : 0u);
+        Bits |= (State.bCanPass ? 1u << 11 : 0u);
+        Bits |= (State.bCanIntercept ? 1u << 12 : 0u);
+        Bits |= (State.bCanTackle ? 1u << 13 : 0u);
+        Bits |= (State.bFatigued ? 1u << 14 : 0u);
+        Bits |= (State.bInPosition ? 1u << 15 : 0u);
+        Bits |= (State.bTeamHasPossession ? 1u << 16 : 0u);
+        Bits |= (State.bTeamAttacking ? 1u << 17 : 0u);
+        Bits |= (State.bTeamDefending ? 1u << 18 : 0u);
+        Bits |= (State.bCounterAttackAvailable ? 1u << 19 : 0u);
+        Bits |= (State.bSetPieceActive ? 1u << 20 : 0u);
+        return ::GetTypeHash(Bits);
+    }
 };
 
 /**
@@ -123,7 +151,7 @@ struct FGOAPAction
     FGameplayTag ActionTag;
 
     UPROPERTY()
-    EGOAPActionCost::Type Cost = EGOAPActionCost::Medium;
+    TEnumAsByte<EGOAPActionCost::Type> Cost = EGOAPActionCost::Medium;
 
     UPROPERTY()
     FGOAPWorldState Preconditions;
@@ -210,10 +238,12 @@ public:
 
     // Planning
     UFUNCTION(BlueprintCallable, Category = "Football|GOAP")
-    FGOAPPlan Plan(const FGOAPWorldState& CurrentState, const TArray<FGOAPGoal>& Goals, const TArray<FGOAPAction>& AvailableActions);
+    FGOAPPlan Plan(const FGOAPWorldState& CurrentState, const TArray<FGOAPGoal>& Goals,
+                   const TArray<FGOAPAction>& AvailableActions);
 
     UFUNCTION(BlueprintCallable, Category = "Football|GOAP")
-    FGOAPPlan FindBestPlan(const FGOAPWorldState& CurrentState, const TArray<FGOAPGoal>& Goals, const TArray<FGOAPAction>& AvailableActions);
+    FGOAPPlan FindBestPlan(const FGOAPWorldState& CurrentState, const TArray<FGOAPGoal>& Goals,
+                           const TArray<FGOAPAction>& AvailableActions);
 
     // Action execution
     UFUNCTION(BlueprintCallable, Category = "Football|GOAP")
@@ -224,7 +254,8 @@ public:
 
     // World state evaluation
     UFUNCTION(BlueprintCallable, Category = "Football|GOAP")
-    FGOAPWorldState EvaluateWorldState(AFootballPlayerCharacter* Character, UFootballBallComponent* Ball, AFootballTeam* Team, AFootballTeam* OpponentTeam) const;
+    FGOAPWorldState EvaluateWorldState(AFootballPlayerCharacter* Character, UFootballBallComponent* Ball,
+                                       AFootballTeam* Team, AFootballTeam* OpponentTeam) const;
 
     // Default actions and goals
     UFUNCTION(BlueprintCallable, Category = "Football|GOAP")
@@ -247,6 +278,8 @@ protected:
 
     float CalculateHeuristic(const FGOAPWorldState& Current, const FGOAPWorldState& Goal) const;
     TArray<FGOAPAction> GetApplicableActions(const FGOAPWorldState& State, const TArray<FGOAPAction>& AllActions) const;
+    FGOAPPlan FindPlanForGoal(const FGOAPWorldState& StartState, const FGOAPGoal& Goal,
+                              const TArray<FGOAPAction>& AvailableActions);
 };
 
 /**
@@ -261,7 +294,8 @@ public:
     UFootballGOAPComponent();
 
     virtual void BeginPlay() override;
-    virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+    virtual void TickComponent(float DeltaTime, ELevelTick TickType,
+                               FActorComponentTickFunction* ThisTickFunction) override;
 
     // Planning
     UFUNCTION(BlueprintCallable, Category = "Football|GOAP")

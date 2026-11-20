@@ -9,6 +9,7 @@
 #include "Components/TextBlock.h"
 #include "Components/HorizontalBox.h"
 #include "Components/VerticalBox.h"
+#include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetTextLibrary.h"
 
 void UFootballReplayWidget::NativeConstruct()

@@ -38,14 +38,10 @@ public:
 
     // Physics
     UFUNCTION(BlueprintCallable, Category = "Football|Ball")
-    void ApplyKick(const FVector& Impulse, const FVector& Spin, AActor* Instigator);
+    void ApplyKick(const FVector& Impulse, const FVector& Spin, AActor* KickInstigator);
 
     UFUNCTION(BlueprintCallable, Category = "Football|Ball")
     void ResetBall(const FVector& Location, const FRotator& Rotation = FRotator::ZeroRotator);
-
-    // Network
-    UFUNCTION(BlueprintCallable, Category = "Football|Network")
-    void SetReplicateMovement(bool bReplicate);
 
 protected:
     // Components
@@ -58,13 +54,16 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Ball", meta = (AllowPrivateAccess = "true"))
     TObjectPtr<USphereComponent> CollisionSphere;
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Ball|Effects", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Ball|Effects",
+              meta = (AllowPrivateAccess = "true"))
     TObjectPtr<UNiagaraComponent> TrailEffect;
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Ball|Effects", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Ball|Effects",
+              meta = (AllowPrivateAccess = "true"))
     TObjectPtr<UNiagaraComponent> SpinEffect;
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Ball|Effects", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Ball|Effects",
+              meta = (AllowPrivateAccess = "true"))
     TObjectPtr<UNiagaraComponent> ImpactEffect;
 
     // Ball Data
@@ -80,4 +79,19 @@ protected:
 private:
     void SetupComponents();
     void InitializeEffects();
+
+    UFUNCTION()
+    void OnBallKicked(const FVector& Impulse, const FVector& Spin, AActor* KickInstigator);
+
+    UFUNCTION()
+    void OnBallCollision(const FHitResult& HitResult, AActor* OtherActor);
+
+    UFUNCTION()
+    void OnBallGoalScored(EFootballTeamSide::Type ScoringTeam);
+
+    UFUNCTION()
+    void OnBallOutOfPlay(EFootballTeamSide::Type LastTouchTeam);
+
+    UFUNCTION()
+    void OnBallStateChanged(EFootballBallState::Type NewState);
 };

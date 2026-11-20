@@ -176,13 +176,13 @@ protected:
     TObjectPtr<UVerticalBox> PlayerListContainer = nullptr;
 
     // Animations
-    UPROPERTY(meta = (BindWidget))
+    UPROPERTY(Transient, meta = (BindWidgetAnimOptional))
     TObjectPtr<UWidgetAnimation> MenuOpenAnimation = nullptr;
 
-    UPROPERTY(meta = (BindWidget))
+    UPROPERTY(Transient, meta = (BindWidgetAnimOptional))
     TObjectPtr<UWidgetAnimation> MenuCloseAnimation = nullptr;
 
-    UPROPERTY(meta = (BindWidget))
+    UPROPERTY(Transient, meta = (BindWidgetAnimOptional))
     TObjectPtr<UWidgetAnimation> PanelTransitionAnimation = nullptr;
 
     // Current State
@@ -190,6 +190,18 @@ protected:
     FName CurrentMenu = NAME_None;
 
 private:
+    UFUNCTION()
+    void HandleGraphicsQualitySelectionChanged(FString SelectedItem, ESelectInfo::Type SelectionType);
+
+    UFUNCTION()
+    void HandleDifficultySelectionChanged(FString SelectedItem, ESelectInfo::Type SelectionType);
+
+    UFUNCTION()
+    void HandleCameraStyleSelectionChanged(FString SelectedItem, ESelectInfo::Type SelectionType);
+
+    UFUNCTION()
+    void HandleFormationSelectionChanged(FString SelectedItem, ESelectInfo::Type SelectionType);
+
     void BindButtonEvents();
     void ShowPanel(UVerticalBox* Panel);
     void HideAllPanels();

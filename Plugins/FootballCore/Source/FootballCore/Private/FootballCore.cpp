@@ -6,6 +6,74 @@
 
 DEFINE_LOG_CATEGORY(LogFootballCore);
 
+namespace FFootballTags
+{
+FGameplayTag Game_Active;
+FGameplayTag Game_Paused;
+FGameplayTag Game_HalfTime;
+FGameplayTag Game_Finished;
+FGameplayTag Game_SetPiece;
+
+FGameplayTag Ball_Free;
+FGameplayTag Ball_Possessed;
+FGameplayTag Ball_Flying;
+FGameplayTag Ball_Rolling;
+FGameplayTag Ball_OutOfPlay;
+FGameplayTag Ball_Goal;
+
+FGameplayTag Player_Idle;
+FGameplayTag Player_Running;
+FGameplayTag Player_Sprinting;
+FGameplayTag Player_Dribbling;
+FGameplayTag Player_Passing;
+FGameplayTag Player_Shooting;
+FGameplayTag Player_Tackling;
+FGameplayTag Player_Intercepting;
+FGameplayTag Player_Goalkeeping;
+FGameplayTag Player_Celebrating;
+FGameplayTag Player_Injured;
+FGameplayTag Player_Fatigued;
+
+FGameplayTag Team_Attacking;
+FGameplayTag Team_Defending;
+FGameplayTag Team_Pressing;
+FGameplayTag Team_CounterAttacking;
+FGameplayTag Team_Possession;
+FGameplayTag Team_SetPieceAttack;
+FGameplayTag Team_SetPieceDefense;
+
+FGameplayTag Action_Pass_Short;
+FGameplayTag Action_Pass_Long;
+FGameplayTag Action_Pass_Through;
+FGameplayTag Action_Pass_Cross;
+FGameplayTag Action_Shoot_Power;
+FGameplayTag Action_Shoot_Placement;
+FGameplayTag Action_Shoot_Chip;
+FGameplayTag Action_Shoot_Volley;
+FGameplayTag Action_Dribble;
+FGameplayTag Action_SkillMove;
+FGameplayTag Action_Tackle_Standing;
+FGameplayTag Action_Tackle_Sliding;
+FGameplayTag Action_Intercept;
+FGameplayTag Action_Block;
+FGameplayTag Action_Clearance;
+FGameplayTag Action_Header;
+FGameplayTag Action_Goalkeeper_Save;
+FGameplayTag Action_Goalkeeper_Catch;
+FGameplayTag Action_Goalkeeper_Punch;
+FGameplayTag Action_Goalkeeper_Distribute_Throw;
+FGameplayTag Action_Goalkeeper_Distribute_Kick;
+
+FGameplayTag Body_LeftFoot;
+FGameplayTag Body_RightFoot;
+FGameplayTag Body_Head;
+FGameplayTag Body_Chest;
+FGameplayTag Body_LeftThigh;
+FGameplayTag Body_RightThigh;
+FGameplayTag Body_LeftShoulder;
+FGameplayTag Body_RightShoulder;
+} // namespace FFootballTags
+
 void FFootballCoreModule::StartupModule()
 {
     UE_LOG(LogFootballCore, Log, TEXT("FootballCore Module Started"));
@@ -64,8 +132,10 @@ void FFootballCoreModule::StartupModule()
     FFootballTags::Action_Goalkeeper_Save = FGameplayTag::RequestGameplayTag(FName("Action.Goalkeeper.Save"), false);
     FFootballTags::Action_Goalkeeper_Catch = FGameplayTag::RequestGameplayTag(FName("Action.Goalkeeper.Catch"), false);
     FFootballTags::Action_Goalkeeper_Punch = FGameplayTag::RequestGameplayTag(FName("Action.Goalkeeper.Punch"), false);
-    FFootballTags::Action_Goalkeeper_Distribute_Throw = FGameplayTag::RequestGameplayTag(FName("Action.Goalkeeper.Distribute.Throw"), false);
-    FFootballTags::Action_Goalkeeper_Distribute_Kick = FGameplayTag::RequestGameplayTag(FName("Action.Goalkeeper.Distribute.Kick"), false);
+    FFootballTags::Action_Goalkeeper_Distribute_Throw =
+        FGameplayTag::RequestGameplayTag(FName("Action.Goalkeeper.Distribute.Throw"), false);
+    FFootballTags::Action_Goalkeeper_Distribute_Kick =
+        FGameplayTag::RequestGameplayTag(FName("Action.Goalkeeper.Distribute.Kick"), false);
 
     FFootballTags::Body_LeftFoot = FGameplayTag::RequestGameplayTag(FName("Body.LeftFoot"), false);
     FFootballTags::Body_RightFoot = FGameplayTag::RequestGameplayTag(FName("Body.RightFoot"), false);
@@ -85,11 +155,8 @@ void FFootballCoreModule::ShutdownModule()
 // FFootballFixedVector implementation
 FFootballFixedVector FFootballFixedVector::FromVector(const FVector& Vec, float Precision)
 {
-    return FFootballFixedVector(
-        FMath::RoundToInt(Vec.X * Precision),
-        FMath::RoundToInt(Vec.Y * Precision),
-        FMath::RoundToInt(Vec.Z * Precision)
-    );
+    return FFootballFixedVector(FMath::RoundToInt(Vec.X * Precision), FMath::RoundToInt(Vec.Y * Precision),
+                                FMath::RoundToInt(Vec.Z * Precision));
 }
 
 FVector FFootballFixedVector::ToVector(float Precision) const
@@ -125,11 +192,8 @@ bool FFootballFixedVector::operator!=(const FFootballFixedVector& Other) const
 // FFootballFixedRotator implementation
 FFootballFixedRotator FFootballFixedRotator::FromRotator(const FRotator& Rot, float Precision)
 {
-    return FFootballFixedRotator(
-        FMath::RoundToInt(Rot.Pitch * Precision),
-        FMath::RoundToInt(Rot.Yaw * Precision),
-        FMath::RoundToInt(Rot.Roll * Precision)
-    );
+    return FFootballFixedRotator(FMath::RoundToInt(Rot.Pitch * Precision), FMath::RoundToInt(Rot.Yaw * Precision),
+                                 FMath::RoundToInt(Rot.Roll * Precision));
 }
 
 FRotator FFootballFixedRotator::ToRotator(float Precision) const
