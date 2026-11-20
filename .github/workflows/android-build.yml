@@ -271,47 +271,47 @@ jobs:
             Build/Android/app/build/outputs/
           retention-days: 7
 
-# Code quality checks
-lint:
-  name: Code Quality
-  runs-on: ubuntu-latest
-  steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      with:
-        lfs: true
+  # Code quality checks
+  lint:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
 
-    - name: Run clang-format check
-      run: |
-        find Plugins/FootballCore/Source -name "*.h" -o -name "*.cpp" | xargs clang-format --dry-run --Werror
+      - name: Run clang-format check
+        run: |
+          find Plugins/FootballCore/Source -name "*.h" -o -name "*.cpp" | xargs clang-format --dry-run --Werror
 
-    - name: Check for TODO/FIXME
-      run: |
-        grep -r "TODO\|FIXME" Plugins/FootballCore/Source --include="*.h" --include="*.cpp" || true
+      - name: Check for TODO/FIXME
+        run: |
+          grep -r "TODO\|FIXME" Plugins/FootballCore/Source --include="*.h" --include="*.cpp" || true
 
-    - name: Validate .gitattributes
-      run: |
-        git check-attr --all Build/Android/**/*.fbx Build/Android/**/*.png
+      - name: Validate .gitattributes
+        run: |
+          git check-attr --all Build/Android/**/*.fbx Build/Android/**/*.png
 
-# Security scan
-security:
-  name: Security Scan
-  runs-on: ubuntu-latest
-  steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      with:
-        lfs: true
+  # Security scan
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
 
-    - name: Run Trivy vulnerability scanner
-      uses: aquasecurity/trivy-action@master
-      with:
-        scan-type: 'fs'
-        scan-ref: '.'
-        format: 'sarif'
-        output: 'trivy-results.sarif'
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
 
-    - name: Upload Trivy results
-      uses: github/codeql-action/upload-sarif@v2
-      with:
-        sarif_file: 'trivy-results.sarif'
+      - name: Upload Trivy results
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-results.sarif'
