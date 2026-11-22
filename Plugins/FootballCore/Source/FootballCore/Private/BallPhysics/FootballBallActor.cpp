@@ -7,6 +7,7 @@
 #include "NiagaraFunctionLibrary.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Kismet/GameplayStatics.h"
+#include "UObject/ConstructorHelpers.h"
 
 AFootballBallActor::AFootballBallActor()
 {
@@ -67,12 +68,40 @@ void AFootballBallActor::SetupComponents()
     BallComponent = CreateDefaultSubobject<UFootballBallComponent>(TEXT("BallComponent"));
     SetRootComponent(BallComponent);
 
-    // Visual Mesh
+    // Visual Mesh - load imported Meshy Craquez soccer ball with uniform scale (zero distortion)
     BallMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("BallMesh"));
     BallMesh->SetupAttachment(BallComponent);
     BallMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     BallMesh->SetCastShadow(true);
-    BallMesh->SetRelativeScale3D(FVector(1.0f));
+
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> CraquezBallMeshAsset(
+        TEXT("/Game/Assets/Ball/SM_CraquezBall.SM_CraquezBall"));
+    static ConstructorHelpers::FObjectFinder<UMaterialInterface> CraquezBallMatAsset(
+        TEXT("/Game/Materials/M_CraquezBall.M_CraquezBall"));
+
+    if (CraquezBallMeshAsset.Succeeded())
+    {
+        DefaultBallMesh = CraquezBallMeshAsset.Object;
+        BallMesh->SetStaticMesh(DefaultBallMesh);
+        // Uniform scale matching FIFA ball visibility (~30cm on 190cm Meshy export) without distortion
+        BallMesh->SetRelativeScale3D(FVector(0.16f));
+    }
+    else
+    {
+        static ConstructorHelpers::FObjectFinder<UStaticMesh> FallbackSphere(TEXT("/Engine/BasicShapes/Sphere.Sphere"));
+        if (FallbackSphere.Succeeded())
+        {
+            DefaultBallMesh = FallbackSphere.Object;
+            BallMesh->SetStaticMesh(DefaultBallMesh);
+            BallMesh->SetRelativeScale3D(FVector(0.28f));
+        }
+    }
+
+    if (CraquezBallMatAsset.Succeeded())
+    {
+        DefaultBallMaterial = CraquezBallMatAsset.Object;
+        BallMesh->SetMaterial(0, DefaultBallMaterial);
+    }
 
     // Collision Sphere (for physics interactions)
     CollisionSphere = CreateDefaultSubobject<USphereComponent>(TEXT("CollisionSphere"));

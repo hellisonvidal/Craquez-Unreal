@@ -32,6 +32,7 @@ public:
     virtual void BeginPlay() override;
     virtual void DrawHUD() override;
     virtual void Tick(float DeltaTime) override;
+    virtual void NotifyHitBoxClick(FName BoxName) override;
 
     // Widget Management
     UFUNCTION(BlueprintCallable, Category = "Football|HUD")

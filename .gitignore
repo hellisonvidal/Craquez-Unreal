@@ -56,11 +56,7 @@ DerivedDataCache/
 # Thumbnails
 Thumbs.db
 
-# Compiled Assets
-*.uasset
-*.umap
-*.uexp
-*.ubulk
+# Compiled Shader Bytecode
 *.ushaderbytecode
 
 # Large Assets (use Git LFS)
@@ -79,11 +75,15 @@ Thumbs.db
 
 # Android
 Build/Android_ASTC/
+Build/Android/src/
 Build/Android/.gradle/
 Build/Android/local.properties
 Build/Android/app/build/
 Build/Android/app/release/
 Build/Android/captures/
+
+# FBX auto-extracted texture folders
+*.fbm/
 
 # Windows
 *.pdb

@@ -37,6 +37,7 @@ class FOOTBALLCOREGAMEPLAY_API AFootballGameMode : public AGameModeBase
 public:
     AFootballGameMode();
 
+    virtual void InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage) override;
     virtual void BeginPlay() override;
     virtual void Tick(float DeltaTime) override;
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -144,6 +145,9 @@ public:
     // Game Mode Type
     UFUNCTION(BlueprintCallable, Category = "Football|Match")
     void SetGameMode(EFootballGameMode::Type Mode);
+
+    UFUNCTION(BlueprintCallable, Category = "Football|Match")
+    void ToggleTrainingOrDuelMode();
 
     UFUNCTION(BlueprintPure, Category = "Football|Match")
     EFootballGameMode::Type GetGameMode() const { return GameModeType; }
@@ -265,4 +269,8 @@ private:
     void InitializeTeams();
     void SetupDefaultTactics();
     void SpawnTeamPlayers(AFootballTeam* Team, EFootballTeamSide::Type Side);
+    float DetectPitchSurfaceZ(float X, float Y) const;
+    void UpdateSimpleMatchAI(float DeltaTime);
+
+    float PitchSurfaceZ = 0.0f;
 };

@@ -50,6 +50,10 @@
     {
       "Name": "PCG",
       "Enabled": true
+    },
+    {
+      "Name": "PythonScriptPlugin",
+      "Enabled": true
     }
   ],
   "TargetPlatforms": [

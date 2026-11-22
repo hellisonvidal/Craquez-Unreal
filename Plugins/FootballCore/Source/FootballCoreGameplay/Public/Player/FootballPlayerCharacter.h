@@ -18,6 +18,10 @@ class UAnimMontage;
 class UCurveFloat;
 class UInputAction;
 class UInputMappingContext;
+class UStaticMeshComponent;
+class USpringArmComponent;
+class UCameraComponent;
+class UMaterialInterface;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnPlayerPossessionChanged, AActor*, Player, UFootballBallComponent*,
                                              Ball);
@@ -162,6 +166,25 @@ public:
     UFUNCTION(BlueprintPure, Category = "Football|Team")
     EFootballTeamSide::Type GetTeamSide() const;
 
+    // Visual Uniform & Controls (Separate uniform meshes + touch/HUD helpers)
+    UFUNCTION(BlueprintCallable, Category = "Football|Visuals")
+    void ApplyTeamUniform(EFootballTeamSide::Type Side, bool bIsGoalkeeper);
+
+    UFUNCTION(BlueprintCallable, Category = "Football|Visuals")
+    void SetActiveControlIndicator(bool bActive);
+
+    UFUNCTION(BlueprintCallable, Category = "Football|Input")
+    void TriggerPass();
+
+    UFUNCTION(BlueprintCallable, Category = "Football|Input")
+    void TriggerShoot();
+
+    UFUNCTION(BlueprintCallable, Category = "Football|Input")
+    void TriggerTackle();
+
+    UFUNCTION(BlueprintCallable, Category = "Football|Input")
+    void TriggerToggleSprint();
+
     // Ball Possession
     UFUNCTION(BlueprintPure, Category = "Football|Ball")
     bool HasBallPossession() const { return CurrentBall != nullptr; }
@@ -236,6 +259,66 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Components",
               meta = (AllowPrivateAccess = "true"))
     TObjectPtr<UControlRigComponent> ControlRigComponent;
+
+    // Broadcast / Action Camera
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Camera", meta = (AllowPrivateAccess = "true"))
+    TObjectPtr<USpringArmComponent> CameraBoom;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Camera", meta = (AllowPrivateAccess = "true"))
+    TObjectPtr<UCameraComponent> FollowCamera;
+
+    // Visual Player Body + Separate Uniform Meshes (Jersey/Shorts separate from body)
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Visuals", meta = (AllowPrivateAccess = "true"))
+    TObjectPtr<UStaticMeshComponent> HeadMesh;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Visuals", meta = (AllowPrivateAccess = "true"))
+    TObjectPtr<UStaticMeshComponent> JerseyMesh;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Visuals", meta = (AllowPrivateAccess = "true"))
+    TObjectPtr<UStaticMeshComponent> ShortsMesh;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Visuals", meta = (AllowPrivateAccess = "true"))
+    TObjectPtr<UStaticMeshComponent> LeftLegMesh;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Visuals", meta = (AllowPrivateAccess = "true"))
+    TObjectPtr<UStaticMeshComponent> RightLegMesh;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Visuals", meta = (AllowPrivateAccess = "true"))
+    TObjectPtr<UStaticMeshComponent> LeftBootMesh;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Visuals", meta = (AllowPrivateAccess = "true"))
+    TObjectPtr<UStaticMeshComponent> RightBootMesh;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Visuals", meta = (AllowPrivateAccess = "true"))
+    TObjectPtr<UStaticMeshComponent> ActiveRingMesh;
+
+    // Cached Uniform Materials
+    UPROPERTY()
+    TObjectPtr<UMaterialInterface> MatUniformHome = nullptr;
+
+    UPROPERTY()
+    TObjectPtr<UMaterialInterface> MatShortsHome = nullptr;
+
+    UPROPERTY()
+    TObjectPtr<UMaterialInterface> MatUniformAway = nullptr;
+
+    UPROPERTY()
+    TObjectPtr<UMaterialInterface> MatShortsAway = nullptr;
+
+    UPROPERTY()
+    TObjectPtr<UMaterialInterface> MatUniformGKHome = nullptr;
+
+    UPROPERTY()
+    TObjectPtr<UMaterialInterface> MatUniformGKAway = nullptr;
+
+    UPROPERTY()
+    TObjectPtr<UMaterialInterface> MatPlayerSkin = nullptr;
+
+    UPROPERTY()
+    TObjectPtr<UMaterialInterface> MatPlayerBoots = nullptr;
+
+    UPROPERTY()
+    TObjectPtr<UMaterialInterface> MatActiveRing = nullptr;
 
     // Ball
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Ball", meta = (AllowPrivateAccess = "true"))
@@ -354,6 +437,8 @@ private:
     void OnMontageEnded(UAnimMontage* Montage, bool bInterrupted);
 
     // Input handlers
+    void MoveForwardAxis(float Value);
+    void MoveRightAxis(float Value);
     void OnMove(const FInputActionValue& Value);
     void OnLook(const FInputActionValue& Value);
     void OnSprintPressed();

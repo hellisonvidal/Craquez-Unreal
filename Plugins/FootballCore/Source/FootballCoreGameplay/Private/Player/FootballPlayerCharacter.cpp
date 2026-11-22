@@ -1,9 +1,13 @@
 // Copyright 2024 Craquez. All Rights Reserved.
 
 #include "Player/FootballPlayerCharacter.h"
+#include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
+#include "GameFramework/SpringArmComponent.h"
+#include "UObject/ConstructorHelpers.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "Animation/AnimInstance.h"
@@ -51,6 +55,106 @@ AFootballPlayerCharacter::AFootballPlayerCharacter()
 
     // Tactical Component
     TacticalComponent = CreateDefaultSubobject<UFootballTacticalComponent>(TEXT("TacticalComponent"));
+
+    // Broadcast / Stadium Action Camera
+    bUseControllerRotationPitch = false;
+    bUseControllerRotationYaw = false;
+    bUseControllerRotationRoll = false;
+
+    CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
+    CameraBoom->SetupAttachment(RootComponent);
+    CameraBoom->SetUsingAbsoluteRotation(true);
+    CameraBoom->TargetArmLength = 1550.0f;
+    CameraBoom->SetRelativeRotation(FRotator(-34.0f, -90.0f, 0.0f));
+    CameraBoom->bDoCollisionTest = false;
+    CameraBoom->bEnableCameraLag = true;
+    CameraBoom->CameraLagSpeed = 6.0f;
+
+    FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
+    FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
+    FollowCamera->bUsePawnControlRotation = false;
+    FollowCamera->FieldOfView = 62.0f;
+
+    // Load BasicShapes + Full-Color PBR Uniform Materials
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> SphereShape(TEXT("/Engine/BasicShapes/Sphere.Sphere"));
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> CylinderShape(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeShape(TEXT("/Engine/BasicShapes/Cube.Cube"));
+
+    static ConstructorHelpers::FObjectFinder<UMaterialInterface> MHome(
+        TEXT("/Game/Materials/M_Uniform_Home.M_Uniform_Home"));
+    static ConstructorHelpers::FObjectFinder<UMaterialInterface> MShortsHomeAsset(
+        TEXT("/Game/Materials/M_Shorts_Home.M_Shorts_Home"));
+    static ConstructorHelpers::FObjectFinder<UMaterialInterface> MAway(
+        TEXT("/Game/Materials/M_Uniform_Away.M_Uniform_Away"));
+    static ConstructorHelpers::FObjectFinder<UMaterialInterface> MShortsAwayAsset(
+        TEXT("/Game/Materials/M_Shorts_Away.M_Shorts_Away"));
+    static ConstructorHelpers::FObjectFinder<UMaterialInterface> MGKHome(
+        TEXT("/Game/Materials/M_Uniform_GK_Home.M_Uniform_GK_Home"));
+    static ConstructorHelpers::FObjectFinder<UMaterialInterface> MGKAway(
+        TEXT("/Game/Materials/M_Uniform_GK_Away.M_Uniform_GK_Away"));
+    static ConstructorHelpers::FObjectFinder<UMaterialInterface> MSkin(
+        TEXT("/Game/Materials/M_PlayerSkin.M_PlayerSkin"));
+    static ConstructorHelpers::FObjectFinder<UMaterialInterface> MBoots(
+        TEXT("/Game/Materials/M_PlayerBoots.M_PlayerBoots"));
+    static ConstructorHelpers::FObjectFinder<UMaterialInterface> MRing(
+        TEXT("/Game/Materials/M_Indicator_Active.M_Indicator_Active"));
+
+    if (MHome.Succeeded())
+        MatUniformHome = MHome.Object;
+    if (MShortsHomeAsset.Succeeded())
+        MatShortsHome = MShortsHomeAsset.Object;
+    if (MAway.Succeeded())
+        MatUniformAway = MAway.Object;
+    if (MShortsAwayAsset.Succeeded())
+        MatShortsAway = MShortsAwayAsset.Object;
+    if (MGKHome.Succeeded())
+        MatUniformGKHome = MGKHome.Object;
+    if (MGKAway.Succeeded())
+        MatUniformGKAway = MGKAway.Object;
+    if (MSkin.Succeeded())
+        MatPlayerSkin = MSkin.Object;
+    if (MBoots.Succeeded())
+        MatPlayerBoots = MBoots.Object;
+    if (MRing.Succeeded())
+        MatActiveRing = MRing.Object;
+
+    auto SetupPart = [this](TObjectPtr<UStaticMeshComponent>& Comp, const TCHAR* Name, UStaticMesh* MeshAsset,
+                            const FVector& Loc, const FVector& Scale, UMaterialInterface* Mat)
+    {
+        Comp = CreateDefaultSubobject<UStaticMeshComponent>(Name);
+        Comp->SetupAttachment(RootComponent);
+        Comp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        Comp->SetCastShadow(true);
+        Comp->SetRelativeLocation(Loc);
+        Comp->SetRelativeScale3D(Scale);
+        if (MeshAsset)
+            Comp->SetStaticMesh(MeshAsset);
+        if (Mat)
+            Comp->SetMaterial(0, Mat);
+    };
+
+    // Separate body & uniform meshes (jersey and shorts are distinct meshes from the body)
+    SetupPart(HeadMesh, TEXT("PlayerHead"), SphereShape.Object, FVector(0.0f, 0.0f, 68.0f),
+              FVector(0.26f, 0.26f, 0.28f), MatPlayerSkin);
+    SetupPart(JerseyMesh, TEXT("UniformJersey"), CylinderShape.Object, FVector(0.0f, 0.0f, 22.0f),
+              FVector(0.42f, 0.34f, 0.62f), MatUniformHome);
+    SetupPart(ShortsMesh, TEXT("UniformShorts"), CylinderShape.Object, FVector(0.0f, 0.0f, -18.0f),
+              FVector(0.38f, 0.32f, 0.28f), MatShortsHome);
+    SetupPart(LeftLegMesh, TEXT("LeftLeg"), CylinderShape.Object, FVector(0.0f, -12.0f, -54.0f),
+              FVector(0.14f, 0.14f, 0.48f), MatPlayerSkin);
+    SetupPart(RightLegMesh, TEXT("RightLeg"), CylinderShape.Object, FVector(0.0f, 12.0f, -54.0f),
+              FVector(0.14f, 0.14f, 0.48f), MatPlayerSkin);
+    SetupPart(LeftBootMesh, TEXT("LeftBoot"), CubeShape.Object, FVector(6.0f, -12.0f, -82.0f),
+              FVector(0.24f, 0.13f, 0.10f), MatPlayerBoots);
+    SetupPart(RightBootMesh, TEXT("RightBoot"), CubeShape.Object, FVector(6.0f, 12.0f, -82.0f),
+              FVector(0.24f, 0.13f, 0.10f), MatPlayerBoots);
+    SetupPart(ActiveRingMesh, TEXT("ActivePlayerRing"), CylinderShape.Object, FVector(0.0f, 0.0f, -88.0f),
+              FVector(0.95f, 0.95f, 0.02f), MatActiveRing);
+    if (ActiveRingMesh)
+    {
+        ActiveRingMesh->SetCastShadow(false);
+        ActiveRingMesh->SetVisibility(false);
+    }
 
     // Replication
     bReplicates = true;
@@ -147,15 +251,26 @@ void AFootballPlayerCharacter::SetupPlayerInputComponent(UInputComponent* Player
                                       &AFootballPlayerCharacter::OnSkillMovePressed);
         }
     }
+    // Standard Axis & Action bindings (work out of the box on PC + Gamepad without requiring IMC asset)
+    PlayerInputComponent->BindAxis("MoveForward", this, &AFootballPlayerCharacter::MoveForwardAxis);
+    PlayerInputComponent->BindAxis("MoveRight", this, &AFootballPlayerCharacter::MoveRightAxis);
+    PlayerInputComponent->BindAction("Sprint", IE_Pressed, this, &AFootballPlayerCharacter::OnSprintPressed);
+    PlayerInputComponent->BindAction("Sprint", IE_Released, this, &AFootballPlayerCharacter::OnSprintReleased);
+    PlayerInputComponent->BindAction("Pass", IE_Pressed, this, &AFootballPlayerCharacter::OnPassPressed);
+    PlayerInputComponent->BindAction("Shoot", IE_Pressed, this, &AFootballPlayerCharacter::OnShootPressed);
+    PlayerInputComponent->BindAction("Tackle", IE_Pressed, this, &AFootballPlayerCharacter::OnTacklePressed);
+    PlayerInputComponent->BindAction("SkillMove", IE_Pressed, this, &AFootballPlayerCharacter::OnSkillMovePressed);
 }
 
 void AFootballPlayerCharacter::PossessedBy(AController* NewController)
 {
     Super::PossessedBy(NewController);
+    SetActiveControlIndicator(Cast<APlayerController>(NewController) != nullptr);
 }
 
 void AFootballPlayerCharacter::UnPossessed()
 {
+    SetActiveControlIndicator(false);
     Super::UnPossessed();
 
     if (APlayerController* PC = Cast<APlayerController>(GetController()))
@@ -652,11 +767,92 @@ float AFootballPlayerCharacter::GetAttributeValue(FGameplayTag AttributeTag) con
 void AFootballPlayerCharacter::SetPlayerRole(EFootballPlayerRole::Type NewRole)
 {
     PlayerRole = NewRole;
+    ApplyTeamUniform(GetTeamSide(), PlayerRole == EFootballPlayerRole::Goalkeeper);
 }
 
 void AFootballPlayerCharacter::SetTeam(AFootballTeam* NewTeam)
 {
     Team = NewTeam;
+    ApplyTeamUniform(GetTeamSide(), PlayerRole == EFootballPlayerRole::Goalkeeper);
+}
+
+void AFootballPlayerCharacter::ApplyTeamUniform(EFootballTeamSide::Type Side, bool bIsGoalkeeper)
+{
+    UMaterialInterface* JerseyMat = nullptr;
+    UMaterialInterface* ShortsMat = nullptr;
+
+    if (Side == EFootballTeamSide::Away)
+    {
+        JerseyMat = bIsGoalkeeper ? MatUniformGKAway : MatUniformAway;
+        ShortsMat = MatShortsAway;
+    }
+    else
+    {
+        JerseyMat = bIsGoalkeeper ? MatUniformGKHome : MatUniformHome;
+        ShortsMat = MatShortsHome;
+    }
+
+    if (JerseyMesh && JerseyMat)
+    {
+        JerseyMesh->SetMaterial(0, JerseyMat);
+    }
+    if (ShortsMesh && ShortsMat)
+    {
+        ShortsMesh->SetMaterial(0, ShortsMat);
+    }
+}
+
+void AFootballPlayerCharacter::SetActiveControlIndicator(bool bActive)
+{
+    if (ActiveRingMesh)
+    {
+        ActiveRingMesh->SetVisibility(bActive);
+    }
+}
+
+void AFootballPlayerCharacter::TriggerPass()
+{
+    OnPassPressed();
+}
+
+void AFootballPlayerCharacter::TriggerShoot()
+{
+    OnShootPressed();
+}
+
+void AFootballPlayerCharacter::TriggerTackle()
+{
+    OnTacklePressed();
+}
+
+void AFootballPlayerCharacter::TriggerToggleSprint()
+{
+    if (bWantsToSprint)
+    {
+        StopSprint();
+    }
+    else
+    {
+        StartSprint();
+    }
+}
+
+void AFootballPlayerCharacter::MoveForwardAxis(float Value)
+{
+    if (FMath::Abs(Value) > KINDA_SMALL_NUMBER)
+    {
+        // Camera looks along +Y (Yaw = -90 looks -Y, wait: -90 faces -Y, so forward screen is -Y or +X)
+        // Use horizontal world axes aligned with broadcast camera (Yaw=-90 -> Forward=-Y, Right=+X)
+        AddMovementInput(FVector(0.0f, -1.0f, 0.0f), Value);
+    }
+}
+
+void AFootballPlayerCharacter::MoveRightAxis(float Value)
+{
+    if (FMath::Abs(Value) > KINDA_SMALL_NUMBER)
+    {
+        AddMovementInput(FVector(1.0f, 0.0f, 0.0f), Value);
+    }
 }
 
 EFootballTeamSide::Type AFootballPlayerCharacter::GetTeamSide() const
