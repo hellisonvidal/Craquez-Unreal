@@ -77,6 +77,12 @@ Thumbs.db
 *.xcarchive
 
 # Android
+Build/Android_ASTC/
+Build/Android/.gradle/
+Build/Android/local.properties
+Build/Android/app/build/
+Build/Android/app/release/
+Build/Android/captures/
 
 # Windows
 *.pdb
