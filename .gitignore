@@ -72,6 +72,7 @@ Thumbs.db
 
 # Build Output
 *.apk
+!Releases/*.apk
 *.aab
 *.ipa
 *.xcarchive
