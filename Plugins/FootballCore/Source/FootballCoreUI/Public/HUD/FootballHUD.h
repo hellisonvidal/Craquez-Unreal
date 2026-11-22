@@ -186,4 +186,11 @@ protected:
 private:
     void CreateWidgets();
     void InitializeWidgetReferences();
+
+    FVector HeldMoveDirection = FVector::ZeroVector;
+    float HeldMoveTimeRemaining = 0.0f;
+    int32 CachedHomeGoals = 0;
+    int32 CachedAwayGoals = 0;
+    float GoalBannerTimer = 0.0f;
+    FString GoalBannerText;
 };

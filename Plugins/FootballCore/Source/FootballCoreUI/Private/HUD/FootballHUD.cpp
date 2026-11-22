@@ -4,6 +4,7 @@
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
 #include "GameFramework/PlayerController.h"
+#include "InputCoreTypes.h"
 #include "Kismet/GameplayStatics.h"
 #include "Match/FootballGameMode.h"
 #include "Player/FootballPlayerCharacter.h"
@@ -102,17 +103,61 @@ void AFootballHUD::DrawHUD()
         AddHitBox(FVector2D(X, Y), FVector2D(BW, BH), Id, true, 10);
     };
 
-    // Touch D-Pad (bottom-left above stamina)
+    // Touch D-Pad / Virtual Thumbstick (bottom-left above stamina)
     const float PadSize = 56.0f * Scale;
     const float PadBaseX = 88.0f * Scale;
     const float PadBaseY = H - 205.0f * Scale;
-    const FLinearColor PadCol(0.12f, 0.24f, 0.40f, 0.78f);
+    const FLinearColor PadCol(0.12f, 0.24f, 0.40f, 0.82f);
     DrawActionButton(FName("MoveUp"), TEXT(" ^"), PadBaseX, PadBaseY, PadSize, PadSize, PadCol);
     DrawActionButton(FName("MoveDown"), TEXT(" v"), PadBaseX, PadBaseY + PadSize * 1.15f, PadSize, PadSize, PadCol);
     DrawActionButton(FName("MoveLeft"), TEXT(" <"), PadBaseX - PadSize * 1.15f, PadBaseY + PadSize * 0.58f, PadSize,
                      PadSize, PadCol);
     DrawActionButton(FName("MoveRight"), TEXT(" >"), PadBaseX + PadSize * 1.15f, PadBaseY + PadSize * 0.58f, PadSize,
                      PadSize, PadCol);
+
+    // Continuous hold detection on D-Pad (works on Android touch + PC mouse drag)
+    if (PC && Player)
+    {
+        const float PadCenterX = PadBaseX + PadSize * 0.5f;
+        const float PadCenterY = PadBaseY + PadSize * 1.08f;
+        const float MaxPadRadius = PadSize * 2.15f;
+
+        auto ProcessPointerOnPad = [&](float PX, float PY) -> bool
+        {
+            const float DX = PX - PadCenterX;
+            const float DY = PY - PadCenterY;
+            const float Dist = FMath::Sqrt(DX * DX + DY * DY);
+            if (Dist > 10.0f && Dist <= MaxPadRadius)
+            {
+                // Screen +X -> World +X, Screen +Y -> World +Y
+                const FVector WorldMoveDir = FVector(DX, DY, 0.0f).GetSafeNormal();
+                Player->AddMovementInput(WorldMoveDir, 1.0f);
+                return true;
+            }
+            return false;
+        };
+
+        bool bMovedByPad = false;
+        for (int32 TouchIdx = 0; TouchIdx < 2; ++TouchIdx)
+        {
+            float TX = 0.0f, TY = 0.0f;
+            bool bPressed = false;
+            PC->GetInputTouchState(static_cast<ETouchIndex::Type>(TouchIdx), TX, TY, bPressed);
+            if (bPressed && ProcessPointerOnPad(TX, TY))
+            {
+                bMovedByPad = true;
+                break;
+            }
+        }
+        if (!bMovedByPad && PC->IsInputKeyDown(EKeys::LeftMouseButton))
+        {
+            float MX = 0.0f, MY = 0.0f;
+            if (PC->GetMousePosition(MX, MY))
+            {
+                ProcessPointerOnPad(MX, MY);
+            }
+        }
+    }
 
     // 3. Bottom-Right Colorful Action Buttons (Android & Mouse clickable)
     const float BtnW = 122.0f * Scale;
@@ -135,6 +180,34 @@ void AFootballHUD::DrawHUD()
     // Top-Right Mode Switch Button (11v11 <-> 1v1)
     DrawActionButton(FName("BtnMode"), bIs1v1 ? TEXT("IR 11v11") : TEXT("IR 1v1"), W - 150.0f * Scale, 18.0f * Scale,
                      130.0f * Scale, 44.0f * Scale, FLinearColor(0.48f, 0.16f, 0.76f, 0.90f));
+
+    // Goal celebration banner
+    if (HomeGoals != CachedHomeGoals || AwayGoals != CachedAwayGoals)
+    {
+        if (HomeGoals > CachedHomeGoals)
+        {
+            GoalBannerText = TEXT("GOOOOL DO CRAQUEZ FC!");
+            GoalBannerTimer = 3.0f;
+        }
+        else if (AwayGoals > CachedAwayGoals)
+        {
+            GoalBannerText = TEXT("GOL DO RIVALS FC!");
+            GoalBannerTimer = 3.0f;
+        }
+        CachedHomeGoals = HomeGoals;
+        CachedAwayGoals = AwayGoals;
+    }
+
+    if (GoalBannerTimer > 0.0f)
+    {
+        const float GoalW = 420.0f * Scale;
+        const float GoalH = 64.0f * Scale;
+        const float GoalX = (W - GoalW) * 0.5f;
+        const float GoalY = 92.0f * Scale;
+        DrawRect(FLinearColor(0.95f, 0.72f, 0.02f, 0.94f), GoalX, GoalY, GoalW, GoalH);
+        DrawText(GoalBannerText, FLinearColor(0.04f, 0.08f, 0.16f, 1.0f), GoalX + 42.0f * Scale, GoalY + 18.0f * Scale,
+                 Font, 1.55f * Scale, false);
+    }
 }
 
 void AFootballHUD::NotifyHitBoxClick(FName BoxName)
@@ -173,25 +246,72 @@ void AFootballHUD::NotifyHitBoxClick(FName BoxName)
     }
     else if (BoxName == FName("MoveUp"))
     {
-        Player->AddMovementInput(FVector(0.0f, -1.0f, 0.0f), 1.0f);
+        HeldMoveDirection = FVector(0.0f, -1.0f, 0.0f);
+        HeldMoveTimeRemaining = 0.42f;
+        Player->AddMovementInput(HeldMoveDirection, 1.0f);
     }
     else if (BoxName == FName("MoveDown"))
     {
-        Player->AddMovementInput(FVector(0.0f, 1.0f, 0.0f), 1.0f);
+        HeldMoveDirection = FVector(0.0f, 1.0f, 0.0f);
+        HeldMoveTimeRemaining = 0.42f;
+        Player->AddMovementInput(HeldMoveDirection, 1.0f);
     }
     else if (BoxName == FName("MoveLeft"))
     {
-        Player->AddMovementInput(FVector(-1.0f, 0.0f, 0.0f), 1.0f);
+        HeldMoveDirection = FVector(-1.0f, 0.0f, 0.0f);
+        HeldMoveTimeRemaining = 0.42f;
+        Player->AddMovementInput(HeldMoveDirection, 1.0f);
     }
     else if (BoxName == FName("MoveRight"))
     {
-        Player->AddMovementInput(FVector(1.0f, 0.0f, 0.0f), 1.0f);
+        HeldMoveDirection = FVector(1.0f, 0.0f, 0.0f);
+        HeldMoveTimeRemaining = 0.42f;
+        Player->AddMovementInput(HeldMoveDirection, 1.0f);
     }
 }
 
 void AFootballHUD::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
+
+    if (GoalBannerTimer > 0.0f)
+    {
+        GoalBannerTimer = FMath::Max(0.0f, GoalBannerTimer - DeltaTime);
+    }
+
+    APlayerController* PC = GetOwningPlayerController();
+    AFootballPlayerCharacter* Player = PC ? Cast<AFootballPlayerCharacter>(PC->GetPawn()) : nullptr;
+    if (PC && Player)
+    {
+        if (HeldMoveTimeRemaining > 0.0f)
+        {
+            HeldMoveTimeRemaining = FMath::Max(0.0f, HeldMoveTimeRemaining - DeltaTime);
+            Player->AddMovementInput(HeldMoveDirection, 1.0f);
+        }
+
+        // Direct keyboard polling fallback (guarantees WASD + Arrow keys work even when mouse cursor is shown)
+        FVector KeyMove = FVector::ZeroVector;
+        if (PC->IsInputKeyDown(EKeys::W) || PC->IsInputKeyDown(EKeys::Up))
+        {
+            KeyMove.Y -= 1.0f;
+        }
+        if (PC->IsInputKeyDown(EKeys::S) || PC->IsInputKeyDown(EKeys::Down))
+        {
+            KeyMove.Y += 1.0f;
+        }
+        if (PC->IsInputKeyDown(EKeys::A) || PC->IsInputKeyDown(EKeys::Left))
+        {
+            KeyMove.X -= 1.0f;
+        }
+        if (PC->IsInputKeyDown(EKeys::D) || PC->IsInputKeyDown(EKeys::Right))
+        {
+            KeyMove.X += 1.0f;
+        }
+        if (!KeyMove.IsNearlyZero())
+        {
+            Player->AddMovementInput(KeyMove.GetSafeNormal(), 1.0f);
+        }
+    }
 
     // Update widgets
     if (MatchWidget && bMatchWidgetVisible)

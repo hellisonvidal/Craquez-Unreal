@@ -13,6 +13,7 @@ public class FootballCoreUI : ModuleRules
 			"Core",
 			"CoreUObject",
 			"Engine",
+			"InputCore",
 			"UMG",
 			"Slate",
 			"SlateCore",

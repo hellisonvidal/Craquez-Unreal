@@ -118,39 +118,46 @@ void UFootballBallComponent::InitializeBall(const FFootballBallPhysicsParams& In
 
 void UFootballBallComponent::ApplyKick(const FVector& Impulse, const FVector& Spin, AActor* Instigator)
 {
-    if (CurrentBallState == EFootballBallState::Possessed || CurrentBallState == EFootballBallState::Free)
+    // Convert kick impulse to realistic m/s velocity (SimulatePhysics multiplies m/s by 100 to get cm/s)
+    const float SafeMass = FMath::Max(PhysicsParams.Mass, 0.4f);
+    FVector RawVel = Impulse / (SafeMass * 85.0f);
+    if (RawVel.Size() > 30.0f)
     {
-        CurrentVelocity = Impulse / PhysicsParams.Mass;
-        CurrentAngularVelocity = Spin;
-
-        // Clamp spin to max
-        float SpinMagnitude = CurrentAngularVelocity.Size();
-        if (SpinMagnitude > PhysicsParams.MaxSpinRate)
-        {
-            CurrentAngularVelocity = CurrentAngularVelocity.GetSafeNormal() * PhysicsParams.MaxSpinRate;
-        }
-
-        SetPossessingPlayer(nullptr);
-        TransitionToState(EFootballBallState::Flying);
-
-        OnBallKicked.Broadcast(Impulse, Spin, Instigator);
-
-        if (KickSound)
-        {
-            UGameplayStatics::PlaySoundAtLocation(this, KickSound, GetComponentLocation());
-        }
-
-        // Spawn kick effect
-        if (DeformationEffect)
-        {
-            DeformationEffect->SetActive(true);
-            DeformationEffect->SetVariableVec3("ImpactDirection", -Impulse.GetSafeNormal());
-            DeformationEffect->SetVariableFloat("ImpactStrength", Impulse.Size() / 1000.0f);
-        }
-
-        CurrentDeformation = FMath::Clamp(Impulse.Size() / 5000.0f, 0.0f, 1.0f);
-        DeformationDirection = -Impulse.GetSafeNormal();
+        RawVel = RawVel.GetSafeNormal() * 30.0f;
     }
+    else if (RawVel.Size() < 8.0f && !Impulse.IsNearlyZero())
+    {
+        RawVel = Impulse.GetSafeNormal() * 14.0f;
+    }
+
+    CurrentVelocity = RawVel;
+    CurrentAngularVelocity = Spin;
+
+    float SpinMagnitude = CurrentAngularVelocity.Size();
+    if (SpinMagnitude > PhysicsParams.MaxSpinRate)
+    {
+        CurrentAngularVelocity = CurrentAngularVelocity.GetSafeNormal() * PhysicsParams.MaxSpinRate;
+    }
+
+    SetPossessingPlayer(nullptr);
+    TransitionToState(EFootballBallState::Flying);
+
+    OnBallKicked.Broadcast(Impulse, Spin, Instigator);
+
+    if (KickSound)
+    {
+        UGameplayStatics::PlaySoundAtLocation(this, KickSound, GetComponentLocation());
+    }
+
+    if (DeformationEffect)
+    {
+        DeformationEffect->SetActive(true);
+        DeformationEffect->SetVariableVec3("ImpactDirection", -Impulse.GetSafeNormal());
+        DeformationEffect->SetVariableFloat("ImpactStrength", Impulse.Size() / 1000.0f);
+    }
+
+    CurrentDeformation = FMath::Clamp(Impulse.Size() / 5000.0f, 0.0f, 1.0f);
+    DeformationDirection = -Impulse.GetSafeNormal();
 }
 
 void UFootballBallComponent::ApplyImpulseAtLocation(const FVector& Impulse, const FVector& Location)
@@ -229,25 +236,99 @@ void UFootballBallComponent::SimulatePhysics(float DeltaTime)
 {
     if (CurrentBallState == EFootballBallState::Possessed)
     {
-        // Ball follows possessing player
-        if (PossessingPlayer)
+        // Ball stays at the possessing player's feet in front of their boots
+        if (IsValid(PossessingPlayer))
         {
-            FVector PlayerLocation = PossessingPlayer->GetActorLocation();
-            FVector Offset = FVector(0, 0, 100.0f); // Adjust based on player
-            SetWorldLocation(PlayerLocation + Offset);
+            const FVector PlayerLocation = PossessingPlayer->GetActorLocation();
+            const FVector Forward = PossessingPlayer->GetActorForwardVector();
+            FVector FeetBallLoc = PlayerLocation + Forward * 54.0f - FVector(0.0f, 0.0f, 68.0f);
+            FeetBallLoc.Z = FMath::Max(FeetBallLoc.Z, 22.0f);
+            SetWorldLocation(FeetBallLoc);
+
+            const FVector PlayerVel = PossessingPlayer->GetVelocity();
+            if (PlayerVel.Size2D() > 10.0f)
+            {
+                const FVector RollAxis = FVector::CrossProduct(FVector::UpVector, PlayerVel.GetSafeNormal2D());
+                const FQuat DeltaRot(RollAxis, (PlayerVel.Size2D() * DeltaTime) / 22.0f);
+                SetWorldRotation(DeltaRot * GetComponentQuat());
+            }
+            if (BallMeshComponent && static_cast<const USceneComponent*>(BallMeshComponent.Get()) != this)
+            {
+                BallMeshComponent->SetWorldLocationAndRotation(FeetBallLoc, GetComponentQuat());
+            }
+        }
+        else
+        {
+            PossessingPlayer = nullptr;
+            TransitionToState(EFootballBallState::Free);
         }
         return;
     }
 
-    // Apply forces
+    // Apply gravity (m/s^2) and aerodynamic forces
+    CurrentVelocity.Z -= 9.81f * DeltaTime;
     ApplyAerodynamicForces(DeltaTime);
     ApplyMagnusForce(DeltaTime);
-    ApplyGroundInteraction(DeltaTime);
     UpdateDeformation(DeltaTime);
     CheckCollisions(DeltaTime);
 
-    // Integrate velocity
-    FVector NewLocation = GetComponentLocation() + CurrentVelocity * DeltaTime * 100.0f; // Convert to cm
+    // Integrate velocity (m/s -> cm/s)
+    FVector NewLocation = GetComponentLocation() + CurrentVelocity * DeltaTime * 100.0f;
+
+    // Ground contact + guaranteed turf floor at Z = 22.0 cm (ball radius above Z = 0 pitch surface)
+    float FloorZ = 22.0f;
+    FHitResult GroundHit;
+    if (CheckGroundContact(GroundHit))
+    {
+        FloorZ = FMath::Max(FloorZ, GroundHit.ImpactPoint.Z + 18.0f);
+    }
+
+    if (NewLocation.Z <= FloorZ + 1.0f)
+    {
+        NewLocation.Z = FloorZ;
+        if (CurrentVelocity.Z < -1.8f)
+        {
+            CurrentVelocity.Z = -CurrentVelocity.Z * FMath::Clamp(PhysicsParams.Restitution, 0.35f, 0.68f);
+        }
+        else
+        {
+            CurrentVelocity.Z = 0.0f;
+            // Smooth grass rolling resistance
+            const float Speed2D = CurrentVelocity.Size2D();
+            if (Speed2D > 0.35f)
+            {
+                const FVector2D Decayed = FMath::Vector2DInterpConstantTo(
+                    FVector2D(CurrentVelocity.X, CurrentVelocity.Y), FVector2D::ZeroVector, DeltaTime, 3.8f);
+                CurrentVelocity.X = Decayed.X;
+                CurrentVelocity.Y = Decayed.Y;
+                CurrentAngularVelocity =
+                    FVector::CrossProduct(FVector::UpVector, CurrentVelocity) / FMath::Max(PhysicsParams.Radius, 0.11f);
+                TransitionToState(EFootballBallState::Rolling);
+            }
+            else
+            {
+                CurrentVelocity = FVector::ZeroVector;
+                CurrentAngularVelocity = FVector::ZeroVector;
+                TransitionToState(EFootballBallState::Free);
+            }
+        }
+    }
+
+    // Keep ball inside playable stadium perimeter (allow entering goal mouth |Y| < 380 up to X = +/-4050)
+    const bool bInGoalMouth = FMath::Abs(NewLocation.Y) < 380.0f && NewLocation.Z < 260.0f;
+    const float MaxX = bInGoalMouth ? 4050.0f : 3820.0f;
+    const float MaxY = 2750.0f;
+    if (FMath::Abs(NewLocation.X) > MaxX && !bInGoalMouth)
+    {
+        NewLocation.X = FMath::Sign(NewLocation.X) * MaxX;
+        CurrentVelocity.X = -CurrentVelocity.X * 0.55f;
+    }
+    if (FMath::Abs(NewLocation.Y) > MaxY)
+    {
+        NewLocation.Y = FMath::Sign(NewLocation.Y) * MaxY;
+        CurrentVelocity.Y = -CurrentVelocity.Y * 0.55f;
+    }
+
     SetWorldLocation(NewLocation);
 
     // Integrate rotation from angular velocity

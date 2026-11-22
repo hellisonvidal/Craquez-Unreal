@@ -79,8 +79,6 @@ void AFootballTeam::Tick(float DeltaTime)
     Super::Tick(DeltaTime);
 
     UpdatePossessionTime(DeltaTime);
-    UpdatePlayerPositions(DeltaTime);
-    UpdateTeamShape(DeltaTime);
 }
 
 void AFootballTeam::InitializeTeam(EFootballTeamSide::Type InSide, const FString& InTeamName,
@@ -224,7 +222,7 @@ AFootballPlayerCharacter* AFootballTeam::GetClosestPlayerToBall() const
 
     for (AFootballPlayerCharacter* Player : Players)
     {
-        if (Player && Player->GetController())
+        if (Player)
         {
             float Dist = FVector::Dist(Player->GetActorLocation(), BallLocation);
             if (Dist < MinDist)

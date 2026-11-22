@@ -254,7 +254,27 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Football|Team", meta = (AllowPrivateAccess = "true"))
     int32 AwaySubsUsed = 0;
 
+    // Referenced Stadium Assets (guarantees cooking into Android pak + C++ fallback spawning)
+    UPROPERTY()
+    TObjectPtr<class UStaticMesh> PitchStaticMeshAsset = nullptr;
+
+    UPROPERTY()
+    TObjectPtr<class UMaterialInterface> PitchMaterialAsset = nullptr;
+
+    UPROPERTY()
+    TObjectPtr<class UMaterialInterface> GrassFallbackMaterialAsset = nullptr;
+
+    UPROPERTY()
+    TObjectPtr<class UMaterialInterface> GoalPostMaterialAsset = nullptr;
+
+    UPROPERTY()
+    TObjectPtr<class UStaticMesh> BasicCubeMeshAsset = nullptr;
+
+    UPROPERTY()
+    TObjectPtr<class UStaticMesh> BasicCylinderMeshAsset = nullptr;
+
 private:
+    void EnsureStadiumEnvironment();
     void UpdateMatchTime(float DeltaTime);
     void HandlePhaseTransitions();
     void HandleKickOff();

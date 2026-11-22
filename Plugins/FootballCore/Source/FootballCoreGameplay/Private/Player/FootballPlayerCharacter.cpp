@@ -33,15 +33,18 @@ AFootballPlayerCharacter::AFootballPlayerCharacter()
     GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
 
     // Configure movement
-    GetCharacterMovement()->MaxWalkSpeed = 400.0f; // 4 m/s base
-    GetCharacterMovement()->MaxWalkSpeedCrouched = 200.0f;
+    AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
+    PossessionRange = 165.0f;
+    GetCharacterMovement()->bRunPhysicsWithNoController = true;
+    GetCharacterMovement()->MaxWalkSpeed = 520.0f; // 5.2 m/s base
+    GetCharacterMovement()->MaxWalkSpeedCrouched = 260.0f;
     GetCharacterMovement()->RotationRate = FRotator(0.0f, 720.0f, 0.0f);
     GetCharacterMovement()->bOrientRotationToMovement = true;
     GetCharacterMovement()->bUseControllerDesiredRotation = false;
     GetCharacterMovement()->JumpZVelocity = 500.0f;
     GetCharacterMovement()->AirControl = 0.3f;
-    GetCharacterMovement()->GroundFriction = 3.0f;
-    GetCharacterMovement()->BrakingDecelerationWalking = 2000.0f;
+    GetCharacterMovement()->GroundFriction = 5.0f;
+    GetCharacterMovement()->BrakingDecelerationWalking = 2400.0f;
     GetCharacterMovement()->bEnablePhysicsInteraction = true;
 
     // Mesh
@@ -206,6 +209,43 @@ void AFootballPlayerCharacter::Tick(float DeltaTime)
     UpdateActionCooldown(DeltaTime);
     UpdateProceduralAnimation(DeltaTime);
     CheckBallPossession();
+
+    // Keep player inside playable stadium bounds and above turf surface
+    FVector Loc = GetActorLocation();
+    bool bClamped = false;
+    if (FMath::Abs(Loc.X) > 3950.0f)
+    {
+        Loc.X = FMath::Sign(Loc.X) * 3950.0f;
+        bClamped = true;
+    }
+    if (FMath::Abs(Loc.Y) > 2750.0f)
+    {
+        Loc.Y = FMath::Sign(Loc.Y) * 2750.0f;
+        bClamped = true;
+    }
+    if (Loc.Z < 90.0f)
+    {
+        Loc.Z = 92.0f;
+        bClamped = true;
+    }
+    if (bClamped)
+    {
+        SetActorLocation(Loc);
+    }
+
+    // Procedural running stride animation on legs and boots
+    const float Speed2D = GetVelocity().Size2D();
+    const float StrideAmp = FMath::Clamp(Speed2D / 420.0f, 0.0f, 1.0f) * 16.0f;
+    const float Phase = GetWorld() ? GetWorld()->GetTimeSeconds() * 14.0f : 0.0f;
+    const float Swing = (Speed2D > 20.0f) ? FMath::Sin(Phase) * StrideAmp : 0.0f;
+    if (LeftLegMesh && RightLegMesh && LeftBootMesh && RightBootMesh)
+    {
+        LeftLegMesh->SetRelativeLocation(FVector(Swing * 0.45f, -12.0f, -54.0f));
+        RightLegMesh->SetRelativeLocation(FVector(-Swing * 0.45f, 12.0f, -54.0f));
+        LeftBootMesh->SetRelativeLocation(FVector(6.0f + Swing, -12.0f, -82.0f));
+        RightBootMesh->SetRelativeLocation(FVector(6.0f - Swing, 12.0f, -82.0f));
+    }
+
     SimulationFrame++;
 }
 
@@ -518,25 +558,46 @@ void AFootballPlayerCharacter::Tackle(FGameplayTag TackleType)
     if (UAnimMontage* Montage = ActionMontages.FindRef(TackleType))
     {
         PlayActionMontage(Montage);
-        CurrentActionState = TackleType;
-        ActionCooldown = 1.5f;
-
-        // Tackle logic - check for ball in range
-        if (CurrentBall)
-        {
-            float Dist = FVector::Dist(GetActorLocation(), CurrentBall->GetComponentLocation());
-            if (Dist < 200.0f)
-            {
-                // Successful tackle
-                CurrentBall->ApplyImpulseAtLocation(GetActorForwardVector() * 5000.0f,
-                                                    CurrentBall->GetComponentLocation());
-                ReleasePossession();
-            }
-        }
-
-        ConsumeStamina(15.0f);
-        OnActionExecuted.Broadcast(TackleType, true, CurrentBall ? CurrentBall->GetOwner() : nullptr);
     }
+
+    CurrentActionState = TackleType;
+    ActionCooldown = 0.65f;
+
+    // Lunge forward and challenge for the ball (works even without montage assets)
+    FVector LungeDir = GetActorForwardVector();
+    TArray<AActor*> FoundBalls;
+    UGameplayStatics::GetAllActorsOfClass(GetWorld(), AFootballBallActor::StaticClass(), FoundBalls);
+    for (AActor* Actor : FoundBalls)
+    {
+        if (UFootballBallComponent* Ball =
+                Cast<UFootballBallComponent>(Actor->GetComponentByClass(UFootballBallComponent::StaticClass())))
+        {
+            const FVector ToBall = Ball->GetComponentLocation() - GetActorLocation();
+            if (ToBall.Size2D() < 450.0f)
+            {
+                LungeDir = ToBall.GetSafeNormal2D();
+            }
+            if (ToBall.Size() <= 265.0f)
+            {
+                if (AFootballPlayerCharacter* OldOwner = Cast<AFootballPlayerCharacter>(Ball->GetPossessingPlayer()))
+                {
+                    if (OldOwner != this)
+                    {
+                        OldOwner->ReleasePossession();
+                    }
+                }
+                Ball->SetPossessingPlayer(this);
+                CurrentBall = Ball;
+                CurrentActionState = FFootballTags::Player_Dribbling;
+                OnPossessionChanged.Broadcast(this, Ball);
+            }
+            break;
+        }
+    }
+
+    GetCharacterMovement()->Velocity = LungeDir * 720.0f;
+    ConsumeStamina(10.0f);
+    OnActionExecuted.Broadcast(TackleType, true, CurrentBall ? CurrentBall->GetOwner() : nullptr);
 }
 
 void AFootballPlayerCharacter::Intercept()
@@ -1000,27 +1061,41 @@ void AFootballPlayerCharacter::ProcessInput(float DeltaTime)
 
 void AFootballPlayerCharacter::CheckBallPossession()
 {
-    if (!CurrentBall)
+    if (CurrentBall)
     {
-        // Check for nearby balls
-        TArray<AActor*> FoundActors;
-        UGameplayStatics::GetAllActorsOfClass(GetWorld(), AFootballBallActor::StaticClass(), FoundActors);
-
-        for (AActor* Actor : FoundActors)
+        if (CurrentBall->GetPossessingPlayer() != this)
         {
-            if (UFootballBallComponent* Ball =
-                    Cast<UFootballBallComponent>(Actor->GetComponentByClass(UFootballBallComponent::StaticClass())))
+            CurrentBall = nullptr;
+        }
+        return;
+    }
+
+    if (ActionCooldown > 0.0f)
+    {
+        return;
+    }
+
+    TArray<AActor*> FoundActors;
+    UGameplayStatics::GetAllActorsOfClass(GetWorld(), AFootballBallActor::StaticClass(), FoundActors);
+
+    for (AActor* Actor : FoundActors)
+    {
+        if (UFootballBallComponent* Ball =
+                Cast<UFootballBallComponent>(Actor->GetComponentByClass(UFootballBallComponent::StaticClass())))
+        {
+            const EFootballBallState::Type State = Ball->GetBallState();
+            const FVector BallLoc = Ball->GetComponentLocation();
+            const float Distance = FVector::Dist(GetActorLocation(), BallLoc);
+
+            if ((State == EFootballBallState::Free || State == EFootballBallState::Rolling ||
+                 (State == EFootballBallState::Flying && BallLoc.Z < 120.0f)) &&
+                Distance <= PossessionRange)
             {
-                if (Ball->GetBallState() == EFootballBallState::Free ||
-                    Ball->GetBallState() == EFootballBallState::Rolling)
-                {
-                    float Distance = FVector::Dist(GetActorLocation(), Ball->GetComponentLocation());
-                    if (Distance <= PossessionRange)
-                    {
-                        RequestPossession(Ball);
-                        break;
-                    }
-                }
+                Ball->SetPossessingPlayer(this);
+                CurrentBall = Ball;
+                CurrentActionState = FFootballTags::Player_Dribbling;
+                OnPossessionChanged.Broadcast(this, Ball);
+                break;
             }
         }
     }
@@ -1124,23 +1199,111 @@ void AFootballPlayerCharacter::OnSprintReleased()
 
 void AFootballPlayerCharacter::OnPassPressed()
 {
+    // If we don't hold the ball yet, try to grab a nearby ball or switch/call pass from teammate
+    if (!CurrentBall)
+    {
+        CheckBallPossession();
+    }
+
+    if (!CurrentBall && Team)
+    {
+        // If a teammate has the ball, make them pass directly to us!
+        if (AFootballPlayerCharacter* Carrier = Team->GetPlayerWithBall())
+        {
+            if (Carrier != this)
+            {
+                Carrier->PassBall(this, 0.95f, FFootballTags::Action_Pass_Short);
+                return;
+            }
+        }
+        // Otherwise switch control to the teammate closest to the ball
+        if (AFootballPlayerCharacter* Closest = Team->GetClosestPlayerToBall())
+        {
+            if (Closest != this)
+            {
+                if (APlayerController* PC = Cast<APlayerController>(GetController()))
+                {
+                    PC->Possess(Closest);
+                    return;
+                }
+            }
+        }
+    }
+
     if (CurrentBall)
     {
-        // Find best pass target
-        // For now, just do a short pass forward
-        FVector Forward = GetActorForwardVector();
-        FVector TargetLocation = GetActorLocation() + Forward * 2000.0f;
-        PassBall(nullptr, 0.8f, FFootballTags::Action_Pass_Short);
+        AFootballPlayerCharacter* BestTarget = nullptr;
+        if (Team)
+        {
+            const FVector MyLoc = GetActorLocation();
+            const FVector MoveOrFacing =
+                (GetVelocity().Size2D() > 25.0f) ? GetVelocity().GetSafeNormal2D() : GetActorForwardVector();
+            float BestScore = -FLT_MAX;
+
+            for (AFootballPlayerCharacter* Mate : Team->GetAllPlayers())
+            {
+                if (!Mate || Mate == this)
+                {
+                    continue;
+                }
+                const FVector ToMate = Mate->GetActorLocation() - MyLoc;
+                const float Dist = ToMate.Size2D();
+                if (Dist < 220.0f || Dist > 3800.0f)
+                {
+                    continue;
+                }
+                const float Align = FVector::DotProduct(MoveOrFacing, ToMate.GetSafeNormal2D());
+                const float Score = Align * 1200.0f - Dist * 0.35f;
+                if (Score > BestScore)
+                {
+                    BestScore = Score;
+                    BestTarget = Mate;
+                }
+            }
+        }
+
+        if (BestTarget)
+        {
+            const FVector ToMate = (BestTarget->GetActorLocation() - GetActorLocation()).GetSafeNormal2D();
+            SetActorRotation(ToMate.Rotation());
+            PassBall(BestTarget, 0.9f, FFootballTags::Action_Pass_Short);
+            // If player-controlled, smoothly switch control to the receiving teammate
+            if (APlayerController* PC = Cast<APlayerController>(GetController()))
+            {
+                PC->Possess(BestTarget);
+            }
+        }
+        else
+        {
+            FVector Forward = GetActorForwardVector();
+            Forward.Z = 0.05f;
+            KickBall(Forward, 0.78f, 0.0f, FFootballTags::Action_Pass_Short);
+        }
     }
 }
 
 void AFootballPlayerCharacter::OnShootPressed()
 {
+    if (!CurrentBall)
+    {
+        CheckBallPossession();
+    }
+
     if (CurrentBall)
     {
-        // Shoot toward goal
-        FVector GoalDirection = GetActorForwardVector(); // Simplified
-        ShootAtGoal(GetActorLocation() + GoalDirection * 5000.0f, 1.0f, 0.0f, FFootballTags::Action_Shoot_Power);
+        const float TargetGoalX = (GetTeamSide() == EFootballTeamSide::Away) ? -3850.0f : 3850.0f;
+        const float TargetGoalY = FMath::Clamp(GetActorLocation().Y * 0.3f, -240.0f, 240.0f);
+        const FVector GoalTarget(TargetGoalX, TargetGoalY, 115.0f);
+        const FVector ToGoal = (GoalTarget - GetActorLocation()).GetSafeNormal2D();
+        if (!ToGoal.IsNearlyZero())
+        {
+            SetActorRotation(ToGoal.Rotation());
+        }
+        ShootAtGoal(GoalTarget, 1.0f, 0.05f, FFootballTags::Action_Shoot_Power);
+    }
+    else
+    {
+        OnTacklePressed();
     }
 }
 

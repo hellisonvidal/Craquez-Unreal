@@ -3,6 +3,14 @@
 #include "Match/FootballGameMode.h"
 #include "BallPhysics/FootballBallActor.h"
 #include "BallPhysics/FootballBallComponent.h"
+#include "Components/DirectionalLightComponent.h"
+#include "Components/SkyAtmosphereComponent.h"
+#include "Components/SkyLightComponent.h"
+#include "Components/StaticMeshComponent.h"
+#include "Engine/DirectionalLight.h"
+#include "Engine/ExponentialHeightFog.h"
+#include "Engine/SkyLight.h"
+#include "Engine/StaticMeshActor.h"
 #include "Engine/World.h"
 #include "GameFramework/HUD.h"
 #include "GameFramework/PlayerController.h"
@@ -12,18 +20,44 @@
 #include "Tactical/FootballTacticalComponent.h"
 #include "Team/FootballTeam.h"
 #include "Team/FootballTeamManager.h"
+#include "UObject/ConstructorHelpers.h"
 
 AFootballGameMode::AFootballGameMode()
 {
     PrimaryActorTick.bCanEverTick = true;
     PrimaryActorTick.TickGroup = TG_PrePhysics;
 
-    // Default classes so match, players, teams, ball, and HUD work out-of-the-box
-    DefaultPawnClass = AFootballPlayerCharacter::StaticClass();
+    // DefaultPawnClass = nullptr prevents AGameModeBase from spawning an extra 23rd neutral pawn at PlayerStart
+    DefaultPawnClass = nullptr;
     PlayerControllerClass = APlayerController::StaticClass();
     PlayerCharacterClass = AFootballPlayerCharacter::StaticClass();
     TeamClass = AFootballTeam::StaticClass();
     BallComponentClass = UFootballBallComponent::StaticClass();
+
+    // Reference Stadium & Pitch assets directly so the Cooker always packages them and C++ can ensure they exist
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> PitchMeshFinder(
+        TEXT("/Game/Assets/Pitch/SM_CraquezPitch.SM_CraquezPitch"));
+    static ConstructorHelpers::FObjectFinder<UMaterialInterface> PitchMatFinder(
+        TEXT("/Game/Materials/M_CraquezPitch.M_CraquezPitch"));
+    static ConstructorHelpers::FObjectFinder<UMaterialInterface> GrassMatFinder(
+        TEXT("/Game/Materials/M_PitchGrassFallback.M_PitchGrassFallback"));
+    static ConstructorHelpers::FObjectFinder<UMaterialInterface> GoalMatFinder(
+        TEXT("/Game/Materials/M_Shorts_Away.M_Shorts_Away"));
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeFinder(TEXT("/Engine/BasicShapes/Cube.Cube"));
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> CylinderFinder(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
+
+    if (PitchMeshFinder.Succeeded())
+        PitchStaticMeshAsset = PitchMeshFinder.Object;
+    if (PitchMatFinder.Succeeded())
+        PitchMaterialAsset = PitchMatFinder.Object;
+    if (GrassMatFinder.Succeeded())
+        GrassFallbackMaterialAsset = GrassMatFinder.Object;
+    if (GoalMatFinder.Succeeded())
+        GoalPostMaterialAsset = GoalMatFinder.Object;
+    if (CubeFinder.Succeeded())
+        BasicCubeMeshAsset = CubeFinder.Object;
+    if (CylinderFinder.Succeeded())
+        BasicCylinderMeshAsset = CylinderFinder.Object;
 }
 
 void AFootballGameMode::InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage)
@@ -41,8 +75,11 @@ void AFootballGameMode::BeginPlay()
 {
     Super::BeginPlay();
 
-    // Auto-detect exact turf surface height from the imported SM_CraquezPitch mesh
-    PitchSurfaceZ = DetectPitchSurfaceZ(0.0f, 0.0f);
+    // Ensure full-color lighting, collision floor at Z=0, SM_CraquezPitch (grass aligned at Z=0), and 3D goalposts
+    // exist
+    EnsureStadiumEnvironment();
+
+    PitchSurfaceZ = 0.0f;
     BallSpawnLocation = FVector(0.0f, 0.0f, PitchSurfaceZ + 22.0f);
 
     SpawnBall(BallSpawnLocation);
@@ -56,20 +93,6 @@ void AFootballGameMode::BeginPlay()
         PC->bShowMouseCursor = true;
         PC->bEnableClickEvents = true;
         PC->bEnableTouchEvents = true;
-
-        // Possess the Home Striker so the action camera immediately frames the full-color match
-        if (HomeTeam)
-        {
-            AFootballPlayerCharacter* ControlledPlayer = HomeTeam->GetPlayerByRole(EFootballPlayerRole::Striker);
-            if (!ControlledPlayer && HomeTeam->GetAllPlayers().Num() > 0)
-            {
-                ControlledPlayer = HomeTeam->GetAllPlayers().Last();
-            }
-            if (ControlledPlayer)
-            {
-                PC->Possess(ControlledPlayer);
-            }
-        }
     }
 
     // Start match right away so the field is alive
@@ -588,11 +611,191 @@ void AFootballGameMode::ToggleTrainingOrDuelMode()
     }
 }
 
+void AFootballGameMode::EnsureStadiumEnvironment()
+{
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        return;
+    }
+
+    FActorSpawnParameters SpawnParams;
+    SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+    // 1. Ensure bright directional sunlight
+    TArray<AActor*> FoundLights;
+    UGameplayStatics::GetAllActorsOfClass(World, ADirectionalLight::StaticClass(), FoundLights);
+    if (FoundLights.Num() == 0)
+    {
+        if (ADirectionalLight* Sun =
+                World->SpawnActor<ADirectionalLight>(ADirectionalLight::StaticClass(), FVector(0.0f, 0.0f, 2500.0f),
+                                                     FRotator(-48.0f, -35.0f, 0.0f), SpawnParams))
+        {
+            if (UDirectionalLightComponent* LC = Cast<UDirectionalLightComponent>(Sun->GetLightComponent()))
+            {
+                LC->SetMobility(EComponentMobility::Movable);
+                LC->SetIntensity(8.0f);
+                LC->SetLightColor(FLinearColor(1.0f, 0.97f, 0.91f, 1.0f));
+                LC->bAtmosphereSunLight = true;
+            }
+        }
+    }
+
+    // 2. Ensure SkyLight so shadows are filled with natural blue sky light (never black)
+    TArray<AActor*> FoundSkyLights;
+    UGameplayStatics::GetAllActorsOfClass(World, ASkyLight::StaticClass(), FoundSkyLights);
+    if (FoundSkyLights.Num() == 0)
+    {
+        if (ASkyLight* Sky = World->SpawnActor<ASkyLight>(ASkyLight::StaticClass(), FVector(0.0f, 0.0f, 2600.0f),
+                                                          FRotator::ZeroRotator, SpawnParams))
+        {
+            if (USkyLightComponent* SLC = Sky->GetLightComponent())
+            {
+                SLC->SetMobility(EComponentMobility::Movable);
+                SLC->SetIntensity(2.0f);
+                SLC->bRealTimeCapture = true;
+                SLC->RecaptureSky();
+            }
+        }
+    }
+
+    // 3. Ensure SkyAtmosphere
+    TArray<AActor*> FoundAtmospheres;
+    UGameplayStatics::GetAllActorsOfClass(World, ASkyAtmosphere::StaticClass(), FoundAtmospheres);
+    if (FoundAtmospheres.Num() == 0)
+    {
+        World->SpawnActor<ASkyAtmosphere>(ASkyAtmosphere::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator,
+                                          SpawnParams);
+    }
+
+    // 4. Ensure ExponentialHeightFog
+    TArray<AActor*> FoundFogs;
+    UGameplayStatics::GetAllActorsOfClass(World, AExponentialHeightFog::StaticClass(), FoundFogs);
+    if (FoundFogs.Num() == 0)
+    {
+        World->SpawnActor<AExponentialHeightFog>(AExponentialHeightFog::StaticClass(), FVector(0.0f, 0.0f, 200.0f),
+                                                 FRotator::ZeroRotator, SpawnParams);
+    }
+
+    // 5. Always spawn a rock-solid Box-Collision Floor with top surface at World Z = 0.0f (guarantees collision on
+    // Android & PC)
+    if (BasicCubeMeshAsset)
+    {
+        if (AStaticMeshActor* FloorActor = World->SpawnActor<AStaticMeshActor>(
+                AStaticMeshActor::StaticClass(), FVector(0.0f, 0.0f, -50.0f), FRotator::ZeroRotator, SpawnParams))
+        {
+            UStaticMeshComponent* SMC = FloorActor->GetStaticMeshComponent();
+            SMC->SetMobility(EComponentMobility::Movable);
+            SMC->SetStaticMesh(BasicCubeMeshAsset);
+            if (GrassFallbackMaterialAsset)
+            {
+                SMC->SetMaterial(0, GrassFallbackMaterialAsset);
+            }
+            SMC->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+            SMC->SetCollisionObjectType(ECC_WorldStatic);
+            SMC->SetCollisionResponseToAllChannels(ECR_Block);
+            FloorActor->SetActorScale3D(FVector(250.0f, 250.0f, 1.0f));
+        }
+    }
+
+    // 6. Ensure SM_CraquezPitch is present and aligned so its grass surface sits at World Z = 0.0f with uniform
+    // scale 60.0f
+    if (PitchStaticMeshAsset)
+    {
+        TArray<AActor*> StaticMeshes;
+        UGameplayStatics::GetAllActorsOfClass(World, AStaticMeshActor::StaticClass(), StaticMeshes);
+        AStaticMeshActor* ExistingPitch = nullptr;
+        for (AActor* Act : StaticMeshes)
+        {
+            if (AStaticMeshActor* SMA = Cast<AStaticMeshActor>(Act))
+            {
+                if (SMA->GetStaticMeshComponent() &&
+                    SMA->GetStaticMeshComponent()->GetStaticMesh() == PitchStaticMeshAsset)
+                {
+                    ExistingPitch = SMA;
+                    break;
+                }
+            }
+        }
+
+        // Unscaled SM_CraquezPitch flat grass surface is at Z_UE = -17.02.
+        // At uniform scale 60.0f, placing actor at Z = +17.02 * 60.0 = +1021.2f puts grass surface at World Z = 0.0f!
+        const FVector PitchLoc(9.0f, -22.0f, 1021.5f);
+        const FVector PitchScale(60.0f, 60.0f, 60.0f);
+
+        if (ExistingPitch)
+        {
+            ExistingPitch->GetStaticMeshComponent()->SetMobility(EComponentMobility::Movable);
+            ExistingPitch->SetActorLocationAndRotation(PitchLoc, FRotator::ZeroRotator);
+            ExistingPitch->SetActorScale3D(PitchScale);
+            if (PitchMaterialAsset)
+            {
+                ExistingPitch->GetStaticMeshComponent()->SetMaterial(0, PitchMaterialAsset);
+            }
+        }
+        else if (AStaticMeshActor* NewPitch = World->SpawnActor<AStaticMeshActor>(
+                     AStaticMeshActor::StaticClass(), PitchLoc, FRotator::ZeroRotator, SpawnParams))
+        {
+            UStaticMeshComponent* SMC = NewPitch->GetStaticMeshComponent();
+            SMC->SetMobility(EComponentMobility::Movable);
+            SMC->SetStaticMesh(PitchStaticMeshAsset);
+            if (PitchMaterialAsset)
+            {
+                SMC->SetMaterial(0, PitchMaterialAsset);
+            }
+            SMC->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+            NewPitch->SetActorScale3D(PitchScale);
+        }
+    }
+
+    // 7. Spawn 3D White Goalposts at both ends of the field (X = -3800 and X = +3800, Y = +/-366, Z = 0..244)
+    if (BasicCylinderMeshAsset)
+    {
+        auto SpawnPostPiece = [&](const FVector& Loc, const FRotator& Rot, const FVector& Scale)
+        {
+            if (AStaticMeshActor* Piece =
+                    World->SpawnActor<AStaticMeshActor>(AStaticMeshActor::StaticClass(), Loc, Rot, SpawnParams))
+            {
+                UStaticMeshComponent* SMC = Piece->GetStaticMeshComponent();
+                SMC->SetMobility(EComponentMobility::Movable);
+                SMC->SetStaticMesh(BasicCylinderMeshAsset);
+                if (GoalPostMaterialAsset)
+                {
+                    SMC->SetMaterial(0, GoalPostMaterialAsset);
+                }
+                SMC->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+                Piece->SetActorScale3D(Scale);
+            }
+        };
+
+        for (float Sign : {-1.0f, 1.0f})
+        {
+            const float GX = Sign * 3800.0f;
+            const float BackX = Sign * 3940.0f;
+            // Left & Right front goalposts
+            SpawnPostPiece(FVector(GX, -366.0f, 122.0f), FRotator::ZeroRotator, FVector(0.16f, 0.16f, 2.44f));
+            SpawnPostPiece(FVector(GX, 366.0f, 122.0f), FRotator::ZeroRotator, FVector(0.16f, 0.16f, 2.44f));
+            // Front crossbar
+            SpawnPostPiece(FVector(GX, 0.0f, 244.0f), FRotator(0.0f, 0.0f, 90.0f), FVector(0.16f, 0.16f, 7.40f));
+            // Back goal frame bars
+            SpawnPostPiece(FVector(BackX, -366.0f, 122.0f), FRotator::ZeroRotator, FVector(0.10f, 0.10f, 2.44f));
+            SpawnPostPiece(FVector(BackX, 366.0f, 122.0f), FRotator::ZeroRotator, FVector(0.10f, 0.10f, 2.44f));
+            SpawnPostPiece(FVector(BackX, 0.0f, 244.0f), FRotator(0.0f, 0.0f, 90.0f), FVector(0.10f, 0.10f, 7.40f));
+        }
+    }
+}
+
 void AFootballGameMode::SpawnPlayers()
 {
     if (!PlayerCharacterClass || !TeamClass)
     {
         return;
+    }
+
+    // Release ball possession before destroying old players
+    if (BallComponent)
+    {
+        BallComponent->SetPossessingPlayer(nullptr);
     }
 
     // Clear existing players when spawning/switching modes
@@ -607,6 +810,7 @@ void AFootballGameMode::SpawnPlayers()
         {
             if (P)
             {
+                P->ReleasePossession();
                 Team->RemovePlayer(P);
                 P->Destroy();
             }
@@ -618,24 +822,23 @@ void AFootballGameMode::SpawnPlayers()
     if (GameModeType == EFootballGameMode::OneVOne_StrikerVsKeeper)
     {
         // 1v1 Striker vs Keeper duel
+        AFootballPlayerCharacter* Striker = nullptr;
         if (HomeTeam)
         {
-            float Z = DetectPitchSurfaceZ(-900.0f, 0.0f) + 96.0f;
-            AFootballPlayerCharacter* Striker = SpawnPlayer(EFootballTeamSide::Home, EFootballPlayerRole::Striker,
-                                                            FVector(-900.0f, 0.0f, Z), FRotator(0.0f, 0.0f, 0.0f));
-            if (APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0))
-            {
-                if (Striker)
-                {
-                    PC->Possess(Striker);
-                }
-            }
+            Striker = SpawnPlayer(EFootballTeamSide::Home, EFootballPlayerRole::Striker,
+                                  FVector(-220.0f, 0.0f, PitchSurfaceZ + 92.0f), FRotator(0.0f, 0.0f, 0.0f));
         }
         if (AwayTeam)
         {
-            float Z = DetectPitchSurfaceZ(3200.0f, 0.0f) + 96.0f;
-            SpawnPlayer(EFootballTeamSide::Away, EFootballPlayerRole::Goalkeeper, FVector(3200.0f, 0.0f, Z),
-                        FRotator(0.0f, 180.0f, 0.0f));
+            SpawnPlayer(EFootballTeamSide::Away, EFootballPlayerRole::Goalkeeper,
+                        FVector(3600.0f, 0.0f, PitchSurfaceZ + 92.0f), FRotator(0.0f, 180.0f, 0.0f));
+        }
+        if (APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0))
+        {
+            if (Striker)
+            {
+                PC->Possess(Striker);
+            }
         }
         return;
     }
@@ -648,6 +851,23 @@ void AFootballGameMode::SpawnPlayers()
     if (AwayTeam)
     {
         SpawnTeamPlayers(AwayTeam, EFootballTeamSide::Away);
+    }
+
+    // Always possess the Home Striker so the action camera and player controls are active immediately
+    if (APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0))
+    {
+        if (HomeTeam)
+        {
+            AFootballPlayerCharacter* ControlledPlayer = HomeTeam->GetPlayerByRole(EFootballPlayerRole::Striker);
+            if (!ControlledPlayer && HomeTeam->GetAllPlayers().Num() > 0)
+            {
+                ControlledPlayer = HomeTeam->GetAllPlayers().Last();
+            }
+            if (ControlledPlayer)
+            {
+                PC->Possess(ControlledPlayer);
+            }
+        }
     }
 }
 
@@ -667,19 +887,19 @@ void AFootballGameMode::SpawnTeamPlayers(AFootballTeam* Team, EFootballTeamSide:
         EFootballPlayerRole::RightWinger,
     };
 
-    // Compact balanced 4-3-3 layout fitting cleanly on the training ground pitch
+    // Balanced 4-3-3 layout fitting inside the 7600x5400 cm playable pitch (goals at X = +/-3800)
     static const FVector HomeOffsets[11] = {
-        FVector(-3400.0f, 0.0f, 0.0f),     // GK
-        FVector(-2300.0f, -1500.0f, 0.0f), // LB
-        FVector(-2400.0f, -500.0f, 0.0f),  // CB1
-        FVector(-2400.0f, 500.0f, 0.0f),   // CB2
-        FVector(-2300.0f, 1500.0f, 0.0f),  // RB
+        FVector(-3620.0f, 0.0f, 0.0f),     // GK
+        FVector(-2300.0f, -1550.0f, 0.0f), // LB
+        FVector(-2450.0f, -550.0f, 0.0f),  // CB1
+        FVector(-2450.0f, 550.0f, 0.0f),   // CB2
+        FVector(-2300.0f, 1550.0f, 0.0f),  // RB
         FVector(-1400.0f, 0.0f, 0.0f),     // CDM
-        FVector(-1000.0f, -900.0f, 0.0f),  // CM
-        FVector(-1000.0f, 900.0f, 0.0f),   // CAM
-        FVector(-450.0f, -1400.0f, 0.0f),  // LW
-        FVector(-280.0f, 0.0f, 0.0f),      // ST
-        FVector(-450.0f, 1400.0f, 0.0f),   // RW
+        FVector(-950.0f, -950.0f, 0.0f),   // CM
+        FVector(-950.0f, 950.0f, 0.0f),    // CAM
+        FVector(-380.0f, -1450.0f, 0.0f),  // LW
+        FVector(-140.0f, 0.0f, 0.0f),      // ST (right next to center kickoff ball!)
+        FVector(-380.0f, 1450.0f, 0.0f),   // RW
     };
 
     FRotator SpawnRot = (Side == EFootballTeamSide::Home) ? FRotator(0.0f, 0.0f, 0.0f) : FRotator(0.0f, 180.0f, 0.0f);
@@ -691,25 +911,18 @@ void AFootballGameMode::SpawnTeamPlayers(AFootballTeam* Team, EFootballTeamSide:
         {
             Pos.X = -Pos.X;
             Pos.Y = -Pos.Y;
+            if (i == 9) // Push Away striker slightly back on kickoff so Home striker gets first touch
+            {
+                Pos.X = 520.0f;
+            }
         }
-        Pos.Z = DetectPitchSurfaceZ(Pos.X, Pos.Y) + 96.0f;
+        Pos.Z = PitchSurfaceZ + 92.0f;
         SpawnPlayer(Side, Roles11[i], Pos, SpawnRot);
     }
 }
 
 float AFootballGameMode::DetectPitchSurfaceZ(float X, float Y) const
 {
-    if (UWorld* World = GetWorld())
-    {
-        FHitResult Hit;
-        FCollisionQueryParams Params;
-        Params.bTraceComplex = true;
-        if (World->LineTraceSingleByChannel(Hit, FVector(X, Y, 5000.0f), FVector(X, Y, -5000.0f), ECC_WorldStatic,
-                                            Params))
-        {
-            return Hit.ImpactPoint.Z;
-        }
-    }
     return PitchSurfaceZ;
 }
 
@@ -720,19 +933,48 @@ void AFootballGameMode::UpdateSimpleMatchAI(float DeltaTime)
         return;
     }
 
-    FVector BallLoc = BallComponent->GetComponentLocation();
+    const FVector BallLoc = BallComponent->GetComponentLocation();
     APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
     APawn* ControlledPawn = PC ? PC->GetPawn() : nullptr;
 
-    auto TickTeamAI = [BallLoc, ControlledPawn](AFootballTeam* Team, float GoalX)
+    static const FVector BaseOffsets[11] = {
+        FVector(-3620.0f, 0.0f, 0.0f),   FVector(-2300.0f, -1550.0f, 0.0f), FVector(-2450.0f, -550.0f, 0.0f),
+        FVector(-2450.0f, 550.0f, 0.0f), FVector(-2300.0f, 1550.0f, 0.0f),  FVector(-1400.0f, 0.0f, 0.0f),
+        FVector(-950.0f, -950.0f, 0.0f), FVector(-950.0f, 950.0f, 0.0f),    FVector(-380.0f, -1450.0f, 0.0f),
+        FVector(-140.0f, 0.0f, 0.0f),    FVector(-380.0f, 1450.0f, 0.0f),
+    };
+
+    auto TickTeamAI = [&](AFootballTeam* Team, float OwnGoalX, EFootballTeamSide::Type Side)
     {
         if (!Team)
         {
             return;
         }
-        AFootballPlayerCharacter* Chaser = Team->GetClosestPlayerToBall();
-        for (AFootballPlayerCharacter* Player : Team->GetAllPlayers())
+
+        // Find closest non-human-controlled outfield player to the ball
+        AFootballPlayerCharacter* Chaser = nullptr;
+        float BestDist = FLT_MAX;
+        const TArray<AFootballPlayerCharacter*>& TeamPlayers = Team->GetAllPlayers();
+        for (AFootballPlayerCharacter* P : TeamPlayers)
         {
+            if (!P || P == ControlledPawn || P->GetPlayerRole() == EFootballPlayerRole::Goalkeeper)
+            {
+                continue;
+            }
+            const float D = FVector::Dist2D(P->GetActorLocation(), BallLoc);
+            if (D < BestDist)
+            {
+                BestDist = D;
+                Chaser = P;
+            }
+        }
+
+        const float AttackDir = (Side == EFootballTeamSide::Home) ? 1.0f : -1.0f;
+        const float BallShiftX = FMath::Clamp(BallLoc.X * 0.42f, -1100.0f, 1100.0f);
+
+        for (int32 Idx = 0; Idx < TeamPlayers.Num(); ++Idx)
+        {
+            AFootballPlayerCharacter* Player = TeamPlayers[Idx];
             if (!Player || Player == ControlledPawn)
             {
                 continue;
@@ -740,40 +982,73 @@ void AFootballGameMode::UpdateSimpleMatchAI(float DeltaTime)
 
             if (Player->GetPlayerRole() == EFootballPlayerRole::Goalkeeper)
             {
-                float TargetY = FMath::Clamp(BallLoc.Y, -600.0f, 600.0f);
-                FVector GKTarget(GoalX, TargetY, Player->GetActorLocation().Z);
-                FVector Dir = GKTarget - Player->GetActorLocation();
-                if (Dir.Size2D() > 60.0f)
+                if (Player->HasBallPossession())
                 {
-                    Player->AddMovementInput(Dir.GetSafeNormal2D(), 0.75f);
+                    const FVector ClearTarget(-OwnGoalX * 0.5f, FMath::RandRange(-600.0f, 600.0f), 120.0f);
+                    Player->ShootAtGoal(ClearTarget, 0.85f, 0.0f, FFootballTags::Action_Shoot_Power);
+                }
+                else
+                {
+                    const float TargetY = FMath::Clamp(BallLoc.Y * 0.65f, -310.0f, 310.0f);
+                    const FVector GKTarget(OwnGoalX, TargetY, Player->GetActorLocation().Z);
+                    const FVector Dir = GKTarget - Player->GetActorLocation();
+                    if (Dir.Size2D() > 45.0f)
+                    {
+                        Player->AddMovementInput(Dir.GetSafeNormal2D(), 0.80f);
+                    }
+                    if (FVector::Dist2D(Player->GetActorLocation(), BallLoc) < 260.0f)
+                    {
+                        Player->TriggerTackle();
+                    }
+                }
+            }
+            else if (Player->HasBallPossession())
+            {
+                const FVector OpponentGoal(-OwnGoalX,
+                                           FMath::Clamp(Player->GetActorLocation().Y * 0.3f, -220.0f, 220.0f), 110.0f);
+                const FVector ToGoal = (OpponentGoal - Player->GetActorLocation()).GetSafeNormal2D();
+                Player->AddMovementInput(ToGoal, 0.90f);
+                if (FVector::Dist2D(Player->GetActorLocation(), OpponentGoal) < 1850.0f)
+                {
+                    Player->ShootAtGoal(OpponentGoal, 0.92f, 0.1f, FFootballTags::Action_Shoot_Power);
                 }
             }
             else if (Player == Chaser)
             {
-                if (Player->HasBallPossession())
+                const FVector ToBall = BallLoc - Player->GetActorLocation();
+                const float Dist2D = ToBall.Size2D();
+                if (Dist2D > 45.0f)
                 {
-                    FVector OpponentGoal(-GoalX, 0.0f, BallLoc.Z);
-                    FVector ToGoal = (OpponentGoal - Player->GetActorLocation()).GetSafeNormal2D();
-                    Player->AddMovementInput(ToGoal, 0.85f);
-                    if (FVector::Dist2D(Player->GetActorLocation(), OpponentGoal) < 2200.0f)
-                    {
-                        Player->ShootAtGoal(OpponentGoal, 0.8f, 0.5f, FFootballTags::Action_Shoot_Power);
-                    }
+                    Player->AddMovementInput(ToBall.GetSafeNormal2D(), 0.88f);
                 }
-                else
+                if (Dist2D < 190.0f && BallComponent->GetBallState() == EFootballBallState::Possessed)
                 {
-                    FVector ToBall = BallLoc - Player->GetActorLocation();
-                    if (ToBall.Size2D() > 80.0f)
-                    {
-                        Player->AddMovementInput(ToBall.GetSafeNormal2D(), 0.85f);
-                    }
+                    Player->TriggerTackle();
+                }
+            }
+            else if (Idx < 11)
+            {
+                // Smooth dynamic formation movement for all supporting outfield players
+                FVector FormTarget = BaseOffsets[Idx];
+                if (Side == EFootballTeamSide::Away)
+                {
+                    FormTarget.X = -FormTarget.X;
+                    FormTarget.Y = -FormTarget.Y;
+                }
+                FormTarget.X = FMath::Clamp(FormTarget.X + BallShiftX + AttackDir * 180.0f, -3300.0f, 3300.0f);
+                FormTarget.Y = FMath::Clamp(FormTarget.Y + BallLoc.Y * 0.22f, -2400.0f, 2400.0f);
+
+                const FVector ToForm = FormTarget - Player->GetActorLocation();
+                if (ToForm.Size2D() > 140.0f)
+                {
+                    Player->AddMovementInput(ToForm.GetSafeNormal2D(), 0.65f);
                 }
             }
         }
     };
 
-    TickTeamAI(HomeTeam, -3400.0f);
-    TickTeamAI(AwayTeam, 3400.0f);
+    TickTeamAI(HomeTeam, -3620.0f, EFootballTeamSide::Home);
+    TickTeamAI(AwayTeam, 3620.0f, EFootballTeamSide::Away);
 }
 
 AFootballPlayerCharacter* AFootballGameMode::SpawnPlayer(EFootballTeamSide::Type TeamSide,
@@ -970,9 +1245,21 @@ void AFootballGameMode::CheckGoalScored()
         return;
     }
 
-    if (BallComponent->GetBallState() == EFootballBallState::Goal)
+    const FVector BallLoc = BallComponent->GetComponentLocation();
+    if (FMath::Abs(BallLoc.Y) < 370.0f && BallLoc.Z < 255.0f)
     {
-        // Goal already registered via ball component event
+        if (BallLoc.X > 3780.0f)
+        {
+            RegisterGoal(EFootballTeamSide::Home, LastTouchPlayer);
+            SpawnPlayers();
+            ResetBall(EFootballMatchPhase::KickOff);
+        }
+        else if (BallLoc.X < -3780.0f)
+        {
+            RegisterGoal(EFootballTeamSide::Away, LastTouchPlayer);
+            SpawnPlayers();
+            ResetBall(EFootballMatchPhase::KickOff);
+        }
     }
 }
 
