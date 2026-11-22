@@ -638,7 +638,7 @@ UFootballGOAPComponent::UFootballGOAPComponent()
     PrimaryComponentTick.bCanEverTick = true;
     PrimaryComponentTick.TickGroup = TG_PostPhysics;
 
-    Planner = NewObject<UFootballGOAPPlanner>(this);
+    Planner = CreateDefaultSubobject<UFootballGOAPPlanner>(TEXT("GOAPPlanner"));
 }
 
 void UFootballGOAPComponent::BeginPlay()

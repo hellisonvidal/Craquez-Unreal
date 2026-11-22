@@ -357,7 +357,6 @@ void AFootballPlayerCharacter::ChestControl()
     CurrentBall->ApplyImpulseAtLocation(-CurrentBall->GetVelocity() * CurrentBall->GetPhysicsParams().Mass,
                                         GetActorLocation());
     CurrentBall->SetPossessingPlayer(this);
-    CurrentBall = CurrentBall;
     CurrentActionState = FFootballTags::Player_Dribbling;
 }
 
@@ -372,7 +371,6 @@ void AFootballPlayerCharacter::TrapBall()
     CurrentBall->ApplyImpulseAtLocation(-CurrentBall->GetVelocity() * CurrentBall->GetPhysicsParams().Mass * 0.5f,
                                         GetActorLocation());
     CurrentBall->SetPossessingPlayer(this);
-    CurrentBall = CurrentBall;
     CurrentActionState = FFootballTags::Player_Dribbling;
 }
 
